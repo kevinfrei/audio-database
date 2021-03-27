@@ -55,8 +55,8 @@ export type AudioDatabase = {
   // For all the 'parsed' data
   getFlatDatabase: () => FlatAudioDatabase;
   // Loading/saving
-  load: (filename:string) => Promise<boolean>;
-  save: (filename:string) => Promise<void>;
+  load: (filename: string) => Promise<boolean>;
+  save: (filename: string) => Promise<void>;
   // Updating
   refresh: () => Promise<boolean>;
   // API
@@ -82,7 +82,7 @@ type PrivateAudioData = {
 };
 
 export async function MakeAudioDatabase(
-  localStorageLocation: string
+  localStorageLocation: string,
 ): Promise<AudioDatabase> {
   /*
    * Private member data
@@ -143,7 +143,7 @@ export async function MakeAudioDatabase(
 
   function getOrNewArtist(name: string): Artist {
     const maybeKey: ArtistKey | undefined = data.artistNameIndex.get(
-      normalizeName(name)
+      normalizeName(name),
     );
     if (maybeKey) {
       const art = data.dbArtists.get(maybeKey);
@@ -166,7 +166,7 @@ export async function MakeAudioDatabase(
     artists: ArtistKey[],
     secondaryArtists: ArtistKey[],
     vatype: VAType,
-    dirName: string
+    dirName: string,
   ): Album {
     const maybeSharedNames = data.albumTitleIndex.get(normalizeName(title));
     let sharedNames: AlbumKey[];
@@ -182,7 +182,7 @@ export async function MakeAudioDatabase(
       const alb: Album | undefined = data.dbAlbums.get(albumKey);
       if (!alb) {
         err(
-          `DB inconsistency - album (key: ${albumKey}) by title doesn't exist in index`
+          `DB inconsistency - album (key: ${albumKey}) by title doesn't exist in index`,
         );
         // We don't have an easy recovery from this particular inconsistency
         continue;
@@ -217,11 +217,11 @@ export async function MakeAudioDatabase(
         // Check to see if there's a common subset of artists
         const commonArtists = Operations.ArrayIntersection(
           check.primaryArtists,
-          artists
+          artists,
         );
         const demoteArtists = (
           primaryArtists: ArtistKey[],
-          secondArtists: ArtistKey[]
+          secondArtists: ArtistKey[],
         ) => {
           for (let i = primaryArtists.length - 1; i >= 0; i--) {
             if (commonArtists.has(primaryArtists[i])) {
@@ -307,8 +307,8 @@ export async function MakeAudioDatabase(
     // First, get the primary artist
     const tmpArtist: string | string[] = md.artist;
     const artists = typeof tmpArtist === 'string' ? [tmpArtist] : tmpArtist;
-    const allArtists = artists.map((a) => getOrNewArtist(a));
-    const artistIds: ArtistKey[] = allArtists.map((a) => a.key);
+    const allArtists = artists.map(a => getOrNewArtist(a));
+    const artistIds: ArtistKey[] = allArtists.map(a => a.key);
     const secondaryIds: ArtistKey[] = [];
     for (const sa of md.moreArtists || []) {
       const moreArt: Artist = getOrNewArtist(sa);
@@ -321,7 +321,7 @@ export async function MakeAudioDatabase(
       artistIds,
       secondaryIds,
       md.vaType || '',
-      path.dirname(md.originalPath)
+      path.dirname(md.originalPath),
     );
     const theSong: SongWithPath = {
       path: md.originalPath,
@@ -334,7 +334,7 @@ export async function MakeAudioDatabase(
       variations: md.variations,
     };
     album.songs.push(theSong.key);
-    allArtists.forEach((artist) => artist.songs.push(theSong.key));
+    allArtists.forEach(artist => artist.songs.push(theSong.key));
     data.dbSongs.set(theSong.key, theSong);
     // Set this thing as appropriately "observed"
     fileNamesSeen.set(theSong.path, theSong.key);
@@ -405,7 +405,7 @@ export async function MakeAudioDatabase(
     // Get all pictures from each directory.
     // Find the biggest and make it the album picture for any albums in that dir
     const dirsToPics = new Map<string, Set<string>>();
-    idx.forEachImageFile((p) => {
+    idx.forEachImageFile(p => {
       const dirName = path.dirname(p);
       const val = dirsToPics.get(dirName);
       if (val) {
@@ -499,8 +499,8 @@ export async function MakeAudioDatabase(
     await persist.setItemAsync(
       'songHashIndex',
       FTON.stringify(
-        new Map([...data.dbSongs.values()].map((val) => [val.path, val.key]))
-      )
+        new Map([...data.dbSongs.values()].map(val => [val.path, val.key])),
+      ),
     );
     await persist.setItemAsync('highestSongKey', newSongKey());
   }
@@ -508,15 +508,15 @@ export async function MakeAudioDatabase(
   function rebuildIndex() {
     const songs = MakeSearchable(
       data.dbSongs.keys(),
-      (key: SongKey) => data.dbSongs.get(key)?.title || ''
+      (key: SongKey) => data.dbSongs.get(key)?.title || '',
     );
     const albums = MakeSearchable(
       data.dbAlbums.keys(),
-      (key: AlbumKey) => data.dbAlbums.get(key)?.title || ''
+      (key: AlbumKey) => data.dbAlbums.get(key)?.title || '',
     );
     const artists = MakeSearchable(
       data.dbArtists.keys(),
-      (key: ArtistKey) => data.dbArtists.get(key)?.name || ''
+      (key: ArtistKey) => data.dbArtists.get(key)?.name || '',
     );
     data.keywordIndex = { songs, artists, albums };
   }
@@ -539,7 +539,7 @@ export async function MakeAudioDatabase(
     let songs: Set<SongKey> = new Set();
     let albums: Set<AlbumKey> = new Set();
     let artists: Set<ArtistKey> = new Set();
-    for (const t of terms.split(' ').map((s) => s.trim())) {
+    for (const t of terms.split(' ').map(s => s.trim())) {
       if (t.length > 0) {
         const sng = data.keywordIndex.songs(t, substr);
         const alb = data.keywordIndex.albums(t, substr);
@@ -569,14 +569,14 @@ export async function MakeAudioDatabase(
         // TODO: run a database refresh and then send the updated database
         // Also: It should rebuild the keyword index
         await Promise.all(
-          data.dbAudioIndices.map((afi) =>
+          data.dbAudioIndices.map(afi =>
             afi.rescanFiles(
               addSongFromPath,
               () => {},
               () => {},
-              () => {}
-            )
-          )
+              () => {},
+            ),
+          ),
         );
       } finally {
         singleWaiter.leave();
@@ -618,7 +618,7 @@ export async function MakeAudioDatabase(
     const nameIndex = flattened.artistNameIndex as Map<string, ArtistKey>;
     const idx = flattened.indices as { location: string; hash: number }[];
     const audioIndices = await Promise.all(
-      idx.map(({ location, hash }) => MakeAudioFileIndex(location, hash))
+      idx.map(({ location, hash }) => MakeAudioFileIndex(location, hash)),
     );
     data.dbSongs = songs;
     data.dbArtists = artists;
@@ -642,11 +642,11 @@ export async function MakeAudioDatabase(
         dbPictures: data.dbPictures,
         albumTitleIndex: data.albumTitleIndex,
         artistNameIndex: data.artistNameIndex,
-        indices: data.dbAudioIndices.map((afi) => ({
+        indices: data.dbAudioIndices.map(afi => ({
           location: afi.getLocation(),
           hash: afi.getHash(),
         })),
-      })
+      }),
     );
   }
   /*
@@ -657,7 +657,7 @@ export async function MakeAudioDatabase(
 
   // Get the list of existing paths to song-keys
   const songHash = FTON.parse(
-    (await persist.getItemAsync('songHashIndex')) || ''
+    (await persist.getItemAsync('songHashIndex')) || '',
   );
   existingKeys = Type.isMapOfStrings(songHash)
     ? songHash

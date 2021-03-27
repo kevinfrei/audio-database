@@ -1,11 +1,11 @@
-import { MakeError, MakeLogger, Type } from "@freik/core-utils";
-import { Dirent, promises as fsp } from "fs";
-import path from "path";
-import { h32 } from "xxhashjs";
+import { MakeError, MakeLogger, Type } from '@freik/core-utils';
+import { Dirent, promises as fsp } from 'fs';
+import path from 'path';
+import { h32 } from 'xxhashjs';
 
 // eslint-disable-next-line
-const log = MakeLogger("AudioFileIndex", true);
-const err = MakeError("AudioFileInde-err");
+const log = MakeLogger('AudioFileIndex', true);
+const err = MakeError('AudioFileInde-err');
 
 const existingSongKeys = new Map<number, [string, string]>();
 
@@ -26,15 +26,15 @@ function getSongKey(prefix: string, fragmentNum: number, songPath: string) {
   throw Error(`Invalid prefix ${prefix} for songPath ${songPath}`);
 }
 
-const audioTypes = new Set([".flac", ".mp3", ".aac", ".m4a"]);
-const imageTypes = new Set([".png", ".jpg", ".jpeg"]);
+const audioTypes = new Set(['.flac', '.mp3', '.aac', '.m4a']);
+const imageTypes = new Set(['.png', '.jpg', '.jpeg']);
 function isOfType(
   filename: string,
   types: Set<string>,
-  hidden?: boolean
+  hidden?: boolean,
 ): boolean {
   return (
-    (hidden || !path.basename(filename).startsWith(".")) &&
+    (hidden || !path.basename(filename).startsWith('.')) &&
     types.has(path.extname(filename).toLowerCase())
   );
 }
@@ -53,11 +53,11 @@ function getSharedPrefix(paths: string[]): string {
         curPrefix = curPrefix.substr(0, curPrefix.length - 1);
       }
       if (curPrefix.length === 0) {
-        return "";
+        return '';
       }
     }
   }
-  return curPrefix || "";
+  return curPrefix || '';
 }
 
 // An "audio data fragment" is a list of files and metadata info.
@@ -83,7 +83,7 @@ export type AudioFileIndex = {
     addAudio: PathHandler,
     delAudio: PathHandler,
     addImage: PathHandler,
-    delImage: PathHandler
+    delImage: PathHandler,
   ) => Promise<void>;
 };
 
@@ -105,7 +105,7 @@ function SortedArrayDiff(
   oldList: string[],
   newList: string[],
   delFn: PathHandler,
-  addFn: PathHandler
+  addFn: PathHandler,
 ): void {
   let oldIndex = 0;
   let newIndex = 0;
@@ -137,7 +137,7 @@ function SortedArrayDiff(
 
 export async function MakeAudioFileIndex(
   location: string,
-  fragmentHash: number
+  fragmentHash: number,
 ): Promise<AudioFileIndex> {
   /*
    * "member" data goes here
@@ -151,7 +151,7 @@ export async function MakeAudioFileIndex(
   // or directly from the path provided
   async function loadExistingFileIndex(): Promise<boolean> {
     try {
-      const dir = await fsp.opendir(path.join(location, ".emp"));
+      const dir = await fsp.opendir(path.join(location, '.emp'));
       await dir.close();
       // TODO: Make this check it for validity
       return true;
@@ -167,7 +167,7 @@ export async function MakeAudioFileIndex(
     addAudioFn: PathHandler,
     delAudioFn: PathHandler,
     addImageFn: PathHandler,
-    delImageFn: PathHandler
+    delImageFn: PathHandler,
   ): Promise<void> {
     const oldSongList = songList;
     const oldPicList = picList;
@@ -185,7 +185,7 @@ export async function MakeAudioFileIndex(
           continue;
         }
       } catch (e) {
-        err(`Unable to read ${i || "<unknown>"}`);
+        err(`Unable to read ${i || '<unknown>'}`);
         continue;
       }
       if (!dirents) {
@@ -215,7 +215,7 @@ export async function MakeAudioFileIndex(
             }
           }
         } catch (e) {
-          err("Unable to process dirent:");
+          err('Unable to process dirent:');
           err(dirent);
           continue;
         }
