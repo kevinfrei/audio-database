@@ -4,8 +4,8 @@ import path from "path";
 import { h32 } from "xxhashjs";
 
 // eslint-disable-next-line
-const log = MakeLogger("MusicFragment", true);
-const err = MakeError("MusicFragment-err");
+const log = MakeLogger("AudioFileIndex", true);
+const err = MakeError("AudioFileInde-err");
 
 const existingSongKeys = new Map<number, [string, string]>();
 

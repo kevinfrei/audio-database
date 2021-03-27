@@ -1,11 +1,18 @@
 import {
-  Comparisons,
+  Operations,
   FTON,
   MakeError,
   MakeLogger,
   SeqNum,
   Type,
-} from "@freik/core-utils";
+  MakeSingleWaiter,
+} from '@freik/core-utils';
+import {
+  NoArticlesNormalizedStringCompare,
+  NormalizeText,
+  StripInitialArticles,
+} from '@freik/core-utils/lib/Helpers';
+import { SetIntersection } from '@freik/core-utils/lib/Operations';
 import {
   Album,
   AlbumKey,
@@ -15,31 +22,26 @@ import {
   SimpleMetadata,
   Song,
   SongKey,
-} from "@freik/media-core";
-import { Metadata } from "@freik/media-utils";
-import { promises as fsp } from "fs";
-import path from "path";
-import { AudioFileIndex, MakeAudioFileIndex } from "./AudioFileIndex";
-import { GetMetadataStore, isFullMetadata } from "./DbMetadata";
-import { MusicSearch, SearchResults } from "./MusicSearch";
-import * as persist from "./persist";
-import { MakeSearchable } from "./Search";
-import {
-  intersect,
-  MakeSingleWaiter,
-  noArticlesCmp,
-  normalizeName,
-  setIntersection,
-  Waiter,
-} from "./Utilities";
+} from '@freik/media-core';
+import { Metadata } from '@freik/media-utils';
+import { MakePersistence } from '@freik/node-utils';
+import { promises as fsp } from 'fs';
+import path from 'path';
+import { SongWithPath, VAType } from '.';
+import { AudioFileIndex, MakeAudioFileIndex } from './AudioFileIndex';
+import { GetMetadataStore, isFullMetadata } from './DbMetadata';
+import { MusicSearch, SearchResults } from './MusicSearch';
+import { MakeSearchable } from './Search';
 
 // eslint-disable-next-line
-const log = MakeLogger("AudioDatabase", true);
-const err = MakeError("AudioDatabase-err");
+const log = MakeLogger('AudioDatabase', true);
+const err = MakeError('AudioDatabase-err');
 
-export type VAType = "" | "ost" | "va";
-
-export type ServerSong = Song & { path: string };
+export type FlatAudioDatabase = {
+  songs: SongWithPath[];
+  artists: Artist[];
+  albums: Album[];
+};
 
 export type AudioDatabase = {
   // General stuff
@@ -50,45 +52,27 @@ export type AudioDatabase = {
   addOrUpdateSong: (md: FullMetadata) => void;
   delSongFromPath: (filepath: string) => boolean;
   delSongFromKey: (key: SongKey) => boolean;
-  // Update the renderer
-  sendUpdate: () => void;
+  // For all the 'parsed' data
+  getFlatDatabase: () => FlatAudioDatabase;
   // Loading/saving
-  load: () => Promise<boolean>;
-  save: () => Promise<void>;
+  load: (filename:string) => Promise<boolean>;
+  save: (filename:string) => Promise<void>;
   // Updating
-  refresh: () => Promise<void>;
+  refresh: () => Promise<boolean>;
   // API
-  getSong: (key: SongKey) => ServerSong | void;
+  getSong: (key: SongKey) => SongWithPath | void;
   getAlbum: (key: AlbumKey) => Album | void;
   getArtist: (key: ArtistKey) => Artist | void;
   searchIndex: (substring: boolean, term: string) => SearchResults;
 };
 
-let existingKeys: Map<string, SongKey> | null = null;
-const newSongKey = (() => {
-  const highestSongKey = persist.getItem("highestSongKey");
-  if (highestSongKey) {
-    log(`highestSongKey: ${highestSongKey}`);
-    return SeqNum("S", highestSongKey);
-  } else {
-    log("no highest song key found");
-    return SeqNum("S");
-  }
-})();
-
-function getSongKey(songPath: string) {
-  if (existingKeys) {
-    return existingKeys.get(songPath) || newSongKey();
-  } else {
-    return newSongKey();
-  }
+function normalizeName(n: string): string {
+  return NormalizeText(StripInitialArticles(n));
 }
-const newAlbumKey = SeqNum("L");
-const newArtistKey = SeqNum("R");
 
 type PrivateAudioData = {
   dbAudioIndices: AudioFileIndex[];
-  dbSongs: Map<SongKey, ServerSong>;
+  dbSongs: Map<SongKey, SongWithPath>;
   dbAlbums: Map<AlbumKey, Album>;
   dbArtists: Map<ArtistKey, Artist>;
   dbPictures: Map<ArtistKey, string>;
@@ -96,13 +80,16 @@ type PrivateAudioData = {
   artistNameIndex: Map<string, ArtistKey>;
   keywordIndex: MusicSearch | null;
 };
-export async function MakeAudioDatabase(): Promise<AudioDatabase> {
+
+export async function MakeAudioDatabase(
+  localStorageLocation: string
+): Promise<AudioDatabase> {
   /*
    * Private member data
    */
   const data: PrivateAudioData = {
     dbAudioIndices: [],
-    dbSongs: new Map<SongKey, ServerSong>(),
+    dbSongs: new Map<SongKey, SongWithPath>(),
     dbAlbums: new Map<AlbumKey, Album>(),
     dbArtists: new Map<ArtistKey, Artist>(),
     dbPictures: new Map<ArtistKey, string>(),
@@ -110,8 +97,32 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     artistNameIndex: new Map<string, ArtistKey>(),
     keywordIndex: null,
   };
-  const metadataCache = await GetMetadataStore("metadataCache");
-  const metadataOverride = await GetMetadataStore("metadataOverride");
+
+  const newAlbumKey = SeqNum('L');
+  const newArtistKey = SeqNum('R');
+  const persist = MakePersistence(localStorageLocation);
+  const metadataCache = await GetMetadataStore('metadataCache');
+  const metadataOverride = await GetMetadataStore('metadataOverride');
+  let existingKeys: Map<string, SongKey> | null = null;
+  const newSongKey = (() => {
+    const highestSongKey = persist.getItem('highestSongKey');
+    if (highestSongKey) {
+      log(`highestSongKey: ${highestSongKey}`);
+      return SeqNum('S', highestSongKey);
+    } else {
+      log('no highest song key found');
+      return SeqNum('S');
+    }
+  })();
+
+  function getSongKey(songPath: string) {
+    if (existingKeys) {
+      return existingKeys.get(songPath) || newSongKey();
+    } else {
+      return newSongKey();
+    }
+  }
+
   // If the key in this cache is an empty string, the song wasn't added
   const fileNamesSeen = new Map<string, SongKey>();
   const singleWaiter = MakeSingleWaiter(100);
@@ -123,7 +134,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     if (p) {
       return p;
     }
-    return "*TODO: Default Picture Path*";
+    return '*TODO: Default Picture Path*';
   }
 
   function setPicture(key: AlbumKey, filePath: string) {
@@ -177,7 +188,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
         continue;
       }
       const check: Album = alb;
-      if (noArticlesCmp(check.title, title) !== 0) {
+      if (NoArticlesNormalizedStringCompare(check.title, title) !== 0) {
         err(`DB inconsistency - album title index inconsistency`);
         continue;
       }
@@ -189,7 +200,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
         return check;
       }
       // Set equality...
-      if (!Comparisons.ArraySetEqual(check.primaryArtists, artists)) {
+      if (!Operations.ArraySetEqual(check.primaryArtists, artists)) {
         // If the primaryArtists is different, but the files are in the same
         // location, override the VA type update the primaryArtists list and
         // return this one.
@@ -204,7 +215,10 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
         }
         */
         // Check to see if there's a common subset of artists
-        const commonArtists = setIntersection(check.primaryArtists, artists);
+        const commonArtists = Operations.ArrayIntersection(
+          check.primaryArtists,
+          artists
+        );
         const demoteArtists = (
           primaryArtists: ArtistKey[],
           secondArtists: ArtistKey[]
@@ -235,7 +249,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
             for (const s of check.songs) {
               const sng = data.dbSongs.get(s);
               if (!sng) {
-                err("Unable to find a referenced song");
+                err('Unable to find a referenced song');
                 continue;
               }
               demoteArtists(sng.artistIds, sng.secondaryIds);
@@ -244,14 +258,14 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
           return check;
         }
         if (false) {
-          err("Found a likely mismarked VA song:");
+          err('Found a likely mismarked VA song:');
           err(check);
-          err("For this directory:");
+          err('For this directory:');
           err(dirName);
-          err("Artists:");
+          err('Artists:');
           err(artists);
         }
-        check.vatype = "va";
+        check.vatype = 'va';
         check.primaryArtists = [];
         return check;
       }
@@ -276,7 +290,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     const key: AlbumKey = newAlbumKey();
     const album: Album = {
       year,
-      primaryArtists: vatype === "" ? artists : [],
+      primaryArtists: vatype === '' ? artists : [],
       title,
       vatype,
       songs: [],
@@ -292,7 +306,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     // We need to go from textual metadata to artist, album, and song keys
     // First, get the primary artist
     const tmpArtist: string | string[] = md.artist;
-    const artists = typeof tmpArtist === "string" ? [tmpArtist] : tmpArtist;
+    const artists = typeof tmpArtist === 'string' ? [tmpArtist] : tmpArtist;
     const allArtists = artists.map((a) => getOrNewArtist(a));
     const artistIds: ArtistKey[] = allArtists.map((a) => a.key);
     const secondaryIds: ArtistKey[] = [];
@@ -306,10 +320,10 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
       md.year || 0,
       artistIds,
       secondaryIds,
-      md.vaType || "",
+      md.vaType || '',
       path.dirname(md.originalPath)
     );
-    const theSong: ServerSong = {
+    const theSong: SongWithPath = {
       path: md.originalPath,
       artistIds,
       secondaryIds,
@@ -339,7 +353,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     }
     // If we have an 'empty' key, then the song doesn't exist in the DB, but
     // we saw it, so let's remove it from that set and be done
-    if (key === "") {
+    if (key === '') {
       fileNamesSeen.delete(filepath);
       return true;
     }
@@ -358,7 +372,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
       return false;
     }
     // Flag the file as having been seen
-    fileNamesSeen.set(file, "");
+    fileNamesSeen.set(file, '');
 
     // If we've previously failed doing anything with this file, don't keep
     // banging our head against a wall
@@ -367,16 +381,16 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     }
     // Cached data overrides file path acquired metadata
     const mdOverride = metadataOverride.get(file);
-    const littlemd: SimpleMetadata | void = Metadata.fromPath(file);
+    const littlemd: SimpleMetadata | void = Metadata.FromPath(file);
     if (!littlemd) {
-      log("Unable to get metadata from file " + file);
+      log('Unable to get metadata from file ' + file);
       return true;
     }
     const fullMd = Metadata.FullFromObj(file, littlemd as any);
     const md = { ...fullMd, ...mdOverride };
 
     if (!isFullMetadata(md)) {
-      log("Unable to get full metadata from file " + file);
+      log('Unable to get full metadata from file ' + file);
       return true;
     }
 
@@ -429,7 +443,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
       if (!albums || !albums.size) {
         continue;
       }
-      let largest: SizeAndName = { size: 0, name: "" };
+      let largest: SizeAndName = { size: 0, name: '' };
       for (const cur of setOfFiles.values()) {
         const fileStat = await fsp.stat(cur);
         if (fileStat.size > largest.size) {
@@ -456,7 +470,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     for (const file of tryHarder) {
       let maybeMetadata = null;
       try {
-        maybeMetadata = await Metadata.fromFileAsync(file);
+        maybeMetadata = await Metadata.FromFileAsync(file);
       } catch (e) {
         err(`Failed acquiring metadata from ${file}:`);
         err(e);
@@ -483,26 +497,26 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     // Save
     await metadataCache.save();
     await persist.setItemAsync(
-      "songHashIndex",
+      'songHashIndex',
       FTON.stringify(
         new Map([...data.dbSongs.values()].map((val) => [val.path, val.key]))
       )
     );
-    await persist.setItemAsync("highestSongKey", newSongKey());
+    await persist.setItemAsync('highestSongKey', newSongKey());
   }
 
   function rebuildIndex() {
     const songs = MakeSearchable(
       data.dbSongs.keys(),
-      (key: SongKey) => data.dbSongs.get(key)?.title || ""
+      (key: SongKey) => data.dbSongs.get(key)?.title || ''
     );
     const albums = MakeSearchable(
       data.dbAlbums.keys(),
-      (key: AlbumKey) => data.dbAlbums.get(key)?.title || ""
+      (key: AlbumKey) => data.dbAlbums.get(key)?.title || ''
     );
     const artists = MakeSearchable(
       data.dbArtists.keys(),
-      (key: ArtistKey) => data.dbArtists.get(key)?.name || ""
+      (key: ArtistKey) => data.dbArtists.get(key)?.name || ''
     );
     data.keywordIndex = { songs, artists, albums };
   }
@@ -519,28 +533,28 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
       rebuildIndex();
     }
     if (data.keywordIndex === null) {
-      throw Error("Bad news");
+      throw Error('Bad news');
     }
     let first = true;
     let songs: Set<SongKey> = new Set();
     let albums: Set<AlbumKey> = new Set();
     let artists: Set<ArtistKey> = new Set();
-    for (const t of terms.split(" ").map((s) => s.trim())) {
+    for (const t of terms.split(' ').map((s) => s.trim())) {
       if (t.length > 0) {
         const sng = data.keywordIndex.songs(t, substr);
         const alb = data.keywordIndex.albums(t, substr);
         const art = data.keywordIndex.artists(t, substr);
-        songs = first ? new Set(sng) : intersect(songs, sng);
-        albums = first ? new Set(alb) : intersect(albums, alb);
-        artists = first ? new Set(art) : intersect(artists, art);
+        songs = first ? new Set(sng) : SetIntersection(songs, sng);
+        albums = first ? new Set(alb) : SetIntersection(albums, alb);
+        artists = first ? new Set(art) : SetIntersection(artists, art);
         first = false;
       }
     }
-    log("songs:");
+    log('songs:');
     log(songs);
-    log("albums:");
+    log('albums:');
     log(albums);
-    log("artists:");
+    log('artists:');
     log(artists);
     return {
       songs: [...songs],
@@ -549,7 +563,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     };
   }
 
-  async function refresh() {
+  async function refresh(): Promise<boolean> {
     if (await singleWaiter.wait()) {
       try {
         // TODO: run a database refresh and then send the updated database
@@ -564,39 +578,39 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
             )
           )
         );
-        sendUpdate();
       } finally {
         singleWaiter.leave();
       }
+      return true;
+    } else {
+      return false;
     }
   }
 
-  function sendUpdate() {
-    asyncSend({
-      musicDatabase: {
-        songs: data.dbSongs,
-        artists: data.dbArtists,
-        albums: data.dbAlbums,
-      },
-    });
+  function getFlatDatabase(): FlatAudioDatabase {
+    return {
+      songs: [...data.dbSongs.values()],
+      artists: [...data.dbArtists.values()],
+      albums: [...data.dbAlbums.values()],
+    };
   }
 
-  async function load(): Promise<boolean> {
-    const flattened = await persist.getItemAsync("audioDatabase");
+  async function load(filename: string): Promise<boolean> {
+    const flattened = await persist.getItemAsync(filename);
     if (
       !flattened ||
-      !Type.has(flattened, "dbSongs") ||
-      !Type.has(flattened, "dbAlbums") ||
-      !Type.has(flattened, "dbArtists") ||
-      !Type.has(flattened, "dbPictures") ||
-      !Type.has(flattened, "albumTitleIndex") ||
-      !Type.has(flattened, "artistNameIndex") ||
-      !Type.has(flattened, "indices")
+      !Type.has(flattened, 'dbSongs') ||
+      !Type.has(flattened, 'dbAlbums') ||
+      !Type.has(flattened, 'dbArtists') ||
+      !Type.has(flattened, 'dbPictures') ||
+      !Type.has(flattened, 'albumTitleIndex') ||
+      !Type.has(flattened, 'artistNameIndex') ||
+      !Type.has(flattened, 'indices')
     ) {
       return false;
     }
     // TODO: Extra validation?
-    const songs = flattened.dbSongs as Map<SongKey, ServerSong>;
+    const songs = flattened.dbSongs as Map<SongKey, SongWithPath>;
     const albums = flattened.dbAlbums as Map<AlbumKey, Album>;
     const artists = flattened.dbArtists as Map<ArtistKey, Artist>;
     const pictures = flattened.dbPictures as Map<ArtistKey, string>;
@@ -616,11 +630,11 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     return true;
   }
 
-  async function save(): Promise<void> {
+  async function save(filename: string): Promise<void> {
     // I think this should just be handled automatically, instead of requiring
     // clients to remember to do this..
     await persist.setItemAsync(
-      "audioDatabase",
+      filename,
       FTON.stringify({
         dbSongs: data.dbSongs,
         dbAlbums: data.dbAlbums,
@@ -643,7 +657,7 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
 
   // Get the list of existing paths to song-keys
   const songHash = FTON.parse(
-    (await persist.getItemAsync("songHashIndex")) || ""
+    (await persist.getItemAsync('songHashIndex')) || ''
   );
   existingKeys = Type.isMapOfStrings(songHash)
     ? songHash
@@ -660,78 +674,10 @@ export async function MakeAudioDatabase(): Promise<AudioDatabase> {
     addOrUpdateSong,
     delSongFromPath,
     delSongFromKey,
-    sendUpdate,
+    getFlatDatabase,
     load,
     save,
     refresh,
     searchIndex,
   };
-}
-
-function getLocations(): string[] {
-  const strLocations = persist.getItem("locations");
-  const rawLocations = strLocations ? FTON.parse(strLocations) : [];
-  log("getLocations:");
-  log(rawLocations);
-  return (rawLocations && FTON.arrayOfStrings(rawLocations)) || [];
-}
-
-// The Audio Database singleton for the app
-let theAudioDatabase: AudioDatabase | null = null;
-const dbWaiter: Waiter = MakeSingleWaiter();
-
-/**
- * Read the Music Database *from persistence*. This does *not* re-scan locations
- * or any other stuff. It just handles un-flattening the data from storage.
- *
- * @async
- * @param {?boolean} fromScratch - True if the database should be recreated from
- * the original file locations
- * @returns {Promise<AudioDatabase>} The full Audio Database
- */
-export async function getAudioDatabase(
-  fromScratch?: boolean
-): Promise<AudioDatabase> {
-  while (!theAudioDatabase) {
-    if (await dbWaiter.wait()) {
-      try {
-        const newDB = await MakeAudioDatabase();
-        if (fromScratch || !(await newDB.load())) {
-          const musicLocations = getLocations();
-          log("Got music locations:");
-          log(musicLocations);
-          await Promise.all(
-            musicLocations.map(
-              async (loc) =>
-                await newDB.addAudioFileIndex(await MakeAudioFileIndex(loc, 0))
-            )
-          );
-          log("Filled the Audio Database");
-          void newDB.save(); // No need to await saving the data
-        }
-        // Look ma, easy atomic updating!
-        theAudioDatabase = newDB;
-      } finally {
-        dbWaiter.leave();
-      }
-    }
-  }
-
-  return theAudioDatabase;
-}
-
-export async function RescanDB(): Promise<void> {
-  const db = await getAudioDatabase();
-  if (db) {
-    await db.refresh();
-  }
-}
-
-export function UpdateDB(): void {
-  RescanDB()
-    .then(() => log("Finished updating the database"))
-    .catch((rej) => {
-      err("Caught an exception while trying to update the db");
-      err(rej);
-    });
 }
