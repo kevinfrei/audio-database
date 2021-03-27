@@ -1,17 +1,21 @@
 import {
-  Attributes,
-  Comparisons,
   FTON,
   FTONData,
-  FullMetadata,
   MakeError,
   MakeLogger,
   ObjUtil,
+  Operations,
   Type,
 } from '@freik/core-utils';
-import { MD } from '@freik/media-utils';
-import { getAudioDatabase } from './AudioDatabase';
-import * as persist from './persist';
+import { FullMetadata } from '@freik/media-core';
+import { Metadata } from '@freik/media-utils';
+import { Schema } from '@freik/media-utils/lib/metadata';
+import { Persist } from '@freik/node-utils';
+import { AudioDatabase } from '.';
+
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { RawMetadata, FromFileAsync } = Metadata;
+type Attributes = Schema.Attributes;
 
 const log = MakeLogger('metadata');
 const err = MakeError('metadata-err');
@@ -24,7 +28,7 @@ declare type NestedValue =
   | boolean;
 declare type NestedObject = { [key: string]: NestedValue };
 
-export type MinimumMetadata = Partial<FullMetadata> & { originalPath: string };
+export type MinimumMetadata = { originalPath: string } & Partial<FullMetadata>;
 
 function flatten(obj: NestedObject): Map<string, string> {
   const result = new Map<string, string>();
@@ -57,13 +61,13 @@ function flatten(obj: NestedObject): Map<string, string> {
 export async function getMediaInfo(
   mediaPath: string,
 ): Promise<Map<string, string>> {
-  const trackInfo = await MD.RawMetadata(mediaPath);
-  const maybeSimple = await MD.fromFileAsync(mediaPath);
+  const trackInfo = await RawMetadata(mediaPath);
+  const maybeSimple = await FromFileAsync(mediaPath);
   const simple: NestedObject = ((maybeSimple as any) as NestedObject) || {};
   const maybeFull = maybeSimple
-    ? MD.FullFromObj(mediaPath, (maybeSimple as any) as Attributes)
+    ? Metadata.FullFromObj(mediaPath, (maybeSimple as any) as Attributes)
     : null;
-  const full: NestedObject = ((maybeFull as any) as NestedObject) || {};
+  const full: NestedObject = (maybeFull as NestedObject) || {};
   let res: Map<string, string>;
   if (Type.isObjectNonNull(trackInfo)) {
     delete trackInfo.native;
@@ -117,7 +121,7 @@ const mandatoryMetadataKeys: string[] = [
 ];
 
 // Checks to make sure obj is a Partial<FullMetadata>
-export function isOnlyMetadata(obj: unknown): obj is MinimumMetadata {
+export function IsOnlyMetadata(obj: unknown): obj is MinimumMetadata {
   if (!Type.isObjectNonNull(obj)) {
     err("object isn't non-null");
     err(obj);
@@ -147,15 +151,16 @@ export function isOnlyMetadata(obj: unknown): obj is MinimumMetadata {
   }
   return Type.hasStr(obj, 'originalPath');
 }
+type StringMap = { [index: string]: undefined | string | number | string[] };
 
 function minMetadataEqual(a: MinimumMetadata, b: MinimumMetadata): boolean {
   const ak = Object.keys(a);
   const bk = Object.keys(b);
-  if (!Comparisons.ArraySetEqual(ak, bk)) {
+  if (!Operations.ArraySetEqual(ak, bk)) {
     return false;
   }
-  const aa: { [index: string]: undefined | string | number | string[] } = a;
-  const bb: { [index: string]: undefined | string | number | string[] } = b;
+  const aa: StringMap = a as StringMap;
+  const bb: StringMap = b as StringMap;
   for (const k of Object.keys(aa)) {
     if (aa[k] === undefined && bb[k] === undefined) {
       continue;
@@ -164,7 +169,7 @@ function minMetadataEqual(a: MinimumMetadata, b: MinimumMetadata): boolean {
       continue;
     }
     if (Type.isArrayOfString(aa[k]) && Type.isArrayOfString(bb[k])) {
-      if (Comparisons.ArraySetEqual(aa[k] as string[], bb[k] as string[])) {
+      if (Operations.ArraySetEqual(aa[k] as string[], bb[k] as string[])) {
         continue;
       }
     }
@@ -176,8 +181,8 @@ function minMetadataEqual(a: MinimumMetadata, b: MinimumMetadata): boolean {
   return true;
 }
 
-export function isFullMetadata(obj: unknown): obj is FullMetadata {
-  if (!isOnlyMetadata(obj)) {
+export function IsFullMetadata(obj: unknown): obj is FullMetadata {
+  if (!IsOnlyMetadata(obj)) {
     return false;
   }
   for (const fieldName of mandatoryMetadataKeys) {
@@ -188,7 +193,7 @@ export function isFullMetadata(obj: unknown): obj is FullMetadata {
   return true;
 }
 
-function MakeMetadataStore(name: string) {
+function MakeMetadataStore(persist: Persist, name: string) {
   // The lookup for metadata
   const store = new Map<string, MinimumMetadata>();
   // A flag to keep track of if we've changed anything
@@ -270,7 +275,7 @@ function MakeMetadataStore(name: string) {
     store.clear();
     let okay = true;
     valuesToRestore.store.forEach((val: unknown) => {
-      if (isOnlyMetadata(val)) {
+      if (IsOnlyMetadata(val)) {
         store.set(val.originalPath, val);
       } else {
         log(`MDS: failure for ${FTON.stringify(val as FTONData)}`);
@@ -278,7 +283,7 @@ function MakeMetadataStore(name: string) {
       }
     });
     stopTrying.clear();
-    valuesToRestore.fails.forEach(val => stopTrying.add(val));
+    valuesToRestore.fails.forEach((val) => stopTrying.add(val));
     dirty = !okay;
     log(`MDS Load ${okay ? 'Success' : 'Failure'}`);
     loaded = okay;
@@ -289,10 +294,13 @@ function MakeMetadataStore(name: string) {
 
 const mdcm: Map<string, MetadataStore> = new Map<string, MetadataStore>();
 
-export async function GetMetadataStore(name: string): Promise<MetadataStore> {
+export async function GetMetadataStore(
+  persist: Persist,
+  name: string,
+): Promise<MetadataStore> {
   let mdc = mdcm.get(name);
   if (!mdc) {
-    mdc = MakeMetadataStore(name);
+    mdc = MakeMetadataStore(persist, name);
     mdcm.set(name, mdc);
   }
   if (!(await mdc.load())) log(`Loading Metadata Store "${name}" failed`);
@@ -310,18 +318,15 @@ let mdSaveTimer: NodeJS.Timeout | null = null;
  * @returns Promise
  */
 export async function setMediaInfoForSong(
+  audioDatabase: AudioDatabase,
+  persist: Persist,
   metadataToUpdate: MinimumMetadata,
 ): Promise<void> {
   let fullPath: string = metadataToUpdate.originalPath;
   if (fullPath.startsWith('*')) {
     // This means we've got a SongKey instead of a path
     // Get the path from the database
-    const db = await getAudioDatabase();
-    if (!db) {
-      err('Unable to get the path for a song key for a Metadata update');
-      return;
-    }
-    const sng = db.getSong(fullPath.substr(1));
+    const sng = audioDatabase.getSong(fullPath.substr(1));
     if (!sng) {
       err('Unable to get the song for the song key for a metadata update');
       return;
@@ -329,19 +334,22 @@ export async function setMediaInfoForSong(
     fullPath = sng.path;
     metadataToUpdate.originalPath = fullPath;
   }
-  const mdStore = await GetMetadataStore('metadataOverride');
+  const mdStore = await GetMetadataStore(persist, 'metadataOverride');
 
   const prevMd = mdStore.get(fullPath);
   mdStore.set(fullPath, { ...prevMd, ...metadataToUpdate });
   // commit the change to the music database
-  await UpdateSongMetadata(fullPath, { ...prevMd, ...metadataToUpdate });
+  await UpdateSongMetadata(audioDatabase, fullPath, {
+    ...prevMd,
+    ...metadataToUpdate,
+  });
 
   // Debounced the whole file save
   if (mdSaveTimer !== null) {
     clearTimeout(mdSaveTimer);
   }
   mdSaveTimer = setTimeout(() => {
-    mdStore.save().catch(e => {
+    mdStore.save().catch((e) => {
       err('unable to save media info');
       err(metadataToUpdate);
     });
@@ -349,32 +357,32 @@ export async function setMediaInfoForSong(
 }
 
 export async function getMediaInfoForSong(
+  audioDatabase: AudioDatabase,
   key?: string,
 ): Promise<Map<string, string> | void> {
   if (!key || typeof key !== 'string') {
     return;
   }
-  const audioDatabase = await getAudioDatabase();
-  if (audioDatabase) {
-    const song = audioDatabase.getSong(key);
-    if (song) {
-      const data: Map<string, string> = await getMediaInfo(song.path);
-      log(`Fetched the media info for ${song.path}:`);
-      log(data);
-      return data;
-    }
+
+  const song = audioDatabase.getSong(key);
+  if (song) {
+    const data: Map<string, string> = await getMediaInfo(song.path);
+    log(`Fetched the media info for ${song.path}:`);
+    log(data);
+    return data;
   }
 }
 
 // TODO: Migrate this to the new AudioDatabase by just using a delete
 // and then an add. It should be much more straight forward, at least mentally.
 export async function UpdateSongMetadata(
+  audioDatabase: AudioDatabase,
   fullPath: string,
   newMetadata: Partial<FullMetadata>,
 ): Promise<void> {
   // Update this to delete the old song and add the new one...
-  const db = await getAudioDatabase();
-  if (db) {
-    log('NYI');
-  }
+  log('NYI');
+  return new Promise(() => {
+    log("no, really: This isn't impemented yet");
+  });
 }

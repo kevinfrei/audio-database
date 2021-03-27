@@ -20,7 +20,6 @@ import {
   ArtistKey,
   FullMetadata,
   SimpleMetadata,
-  Song,
   SongKey,
 } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
@@ -29,7 +28,7 @@ import { promises as fsp } from 'fs';
 import path from 'path';
 import { SongWithPath, VAType } from '.';
 import { AudioFileIndex, MakeAudioFileIndex } from './AudioFileIndex';
-import { GetMetadataStore, isFullMetadata } from './DbMetadata';
+import { GetMetadataStore, IsFullMetadata } from './DbMetadata';
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
 
@@ -101,8 +100,8 @@ export async function MakeAudioDatabase(
   const newAlbumKey = SeqNum('L');
   const newArtistKey = SeqNum('R');
   const persist = MakePersistence(localStorageLocation);
-  const metadataCache = await GetMetadataStore('metadataCache');
-  const metadataOverride = await GetMetadataStore('metadataOverride');
+  const metadataCache = await GetMetadataStore(persist, 'metadataCache');
+  const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
   let existingKeys: Map<string, SongKey> | null = null;
   const newSongKey = (() => {
     const highestSongKey = persist.getItem('highestSongKey');
@@ -307,8 +306,8 @@ export async function MakeAudioDatabase(
     // First, get the primary artist
     const tmpArtist: string | string[] = md.artist;
     const artists = typeof tmpArtist === 'string' ? [tmpArtist] : tmpArtist;
-    const allArtists = artists.map(a => getOrNewArtist(a));
-    const artistIds: ArtistKey[] = allArtists.map(a => a.key);
+    const allArtists = artists.map((a) => getOrNewArtist(a));
+    const artistIds: ArtistKey[] = allArtists.map((a) => a.key);
     const secondaryIds: ArtistKey[] = [];
     for (const sa of md.moreArtists || []) {
       const moreArt: Artist = getOrNewArtist(sa);
@@ -334,7 +333,7 @@ export async function MakeAudioDatabase(
       variations: md.variations,
     };
     album.songs.push(theSong.key);
-    allArtists.forEach(artist => artist.songs.push(theSong.key));
+    allArtists.forEach((artist) => artist.songs.push(theSong.key));
     data.dbSongs.set(theSong.key, theSong);
     // Set this thing as appropriately "observed"
     fileNamesSeen.set(theSong.path, theSong.key);
@@ -389,7 +388,7 @@ export async function MakeAudioDatabase(
     const fullMd = Metadata.FullFromObj(file, littlemd as any);
     const md = { ...fullMd, ...mdOverride };
 
-    if (!isFullMetadata(md)) {
+    if (!IsFullMetadata(md)) {
       log('Unable to get full metadata from file ' + file);
       return true;
     }
@@ -405,7 +404,7 @@ export async function MakeAudioDatabase(
     // Get all pictures from each directory.
     // Find the biggest and make it the album picture for any albums in that dir
     const dirsToPics = new Map<string, Set<string>>();
-    idx.forEachImageFile(p => {
+    idx.forEachImageFile((p) => {
       const dirName = path.dirname(p);
       const val = dirsToPics.get(dirName);
       if (val) {
@@ -499,7 +498,7 @@ export async function MakeAudioDatabase(
     await persist.setItemAsync(
       'songHashIndex',
       FTON.stringify(
-        new Map([...data.dbSongs.values()].map(val => [val.path, val.key])),
+        new Map([...data.dbSongs.values()].map((val) => [val.path, val.key])),
       ),
     );
     await persist.setItemAsync('highestSongKey', newSongKey());
@@ -539,14 +538,14 @@ export async function MakeAudioDatabase(
     let songs: Set<SongKey> = new Set();
     let albums: Set<AlbumKey> = new Set();
     let artists: Set<ArtistKey> = new Set();
-    for (const t of terms.split(' ').map(s => s.trim())) {
+    for (const t of terms.split(' ').map((s) => s.trim())) {
       if (t.length > 0) {
         const sng = data.keywordIndex.songs(t, substr);
         const alb = data.keywordIndex.albums(t, substr);
         const art = data.keywordIndex.artists(t, substr);
-        songs = first ? new Set(sng) : SetIntersection(songs, sng);
-        albums = first ? new Set(alb) : SetIntersection(albums, alb);
-        artists = first ? new Set(art) : SetIntersection(artists, art);
+        songs = first ? new Set<string>(sng) : SetIntersection(songs, sng);
+        albums = first ? new Set<string>(alb) : SetIntersection(albums, alb);
+        artists = first ? new Set<string>(art) : SetIntersection(artists, art);
         first = false;
       }
     }
@@ -569,12 +568,18 @@ export async function MakeAudioDatabase(
         // TODO: run a database refresh and then send the updated database
         // Also: It should rebuild the keyword index
         await Promise.all(
-          data.dbAudioIndices.map(afi =>
+          data.dbAudioIndices.map((afi) =>
             afi.rescanFiles(
               addSongFromPath,
-              () => {},
-              () => {},
-              () => {},
+              () => {
+                /* */
+              },
+              () => {
+                /* */
+              },
+              () => {
+                /* */
+              },
             ),
           ),
         );
@@ -642,7 +647,7 @@ export async function MakeAudioDatabase(
         dbPictures: data.dbPictures,
         albumTitleIndex: data.albumTitleIndex,
         artistNameIndex: data.artistNameIndex,
-        indices: data.dbAudioIndices.map(afi => ({
+        indices: data.dbAudioIndices.map((afi) => ({
           location: afi.getLocation(),
           hash: afi.getHash(),
         })),
