@@ -49,8 +49,8 @@ export type AudioDatabase = {
   setPicture: (key: AlbumKey, filepath: string) => void;
   addSongFromPath: (filepath: string) => void;
   addOrUpdateSong: (md: FullMetadata) => void;
-  delSongFromPath: (filepath: string) => boolean;
-  delSongFromKey: (key: SongKey) => boolean;
+  delSongByPath: (filepath: string) => boolean;
+  delSongByKey: (key: SongKey) => boolean;
   // For all the 'parsed' data
   getFlatDatabase: () => FlatAudioDatabase;
   // Loading/saving
@@ -339,12 +339,12 @@ export async function MakeAudioDatabase(
     fileNamesSeen.set(theSong.path, theSong.key);
   }
 
-  function delSongFromKey(key: SongKey): boolean {
+  function delSongByKey(key: SongKey): boolean {
     // TODO: Make this work
     return false;
   }
 
-  function delSongFromPath(filepath: string): boolean {
+  function delSongByPath(filepath: string): boolean {
     // First, remove it froom the fileNamesSeen set
     const key = fileNamesSeen.get(filepath);
     if (!Type.isString(key)) {
@@ -677,8 +677,8 @@ export async function MakeAudioDatabase(
     setPicture,
     addSongFromPath,
     addOrUpdateSong,
-    delSongFromPath,
-    delSongFromKey,
+    delSongByPath,
+    delSongByKey,
     getFlatDatabase,
     load,
     save,

@@ -7,15 +7,13 @@ import {
   Operations,
   Type,
 } from '@freik/core-utils';
-import { FullMetadata } from '@freik/media-core';
+import { Attributes, FullMetadata } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
-import { Schema } from '@freik/media-utils/lib/metadata';
 import { Persist } from '@freik/node-utils';
 import { AudioDatabase } from '.';
 
 // eslint-disable-next-line @typescript-eslint/unbound-method
 const { RawMetadata, FromFileAsync } = Metadata;
-type Attributes = Schema.Attributes;
 
 const log = MakeLogger('metadata');
 const err = MakeError('metadata-err');
