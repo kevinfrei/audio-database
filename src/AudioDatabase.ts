@@ -22,15 +22,15 @@ import {
   SimpleMetadata,
   SongKey,
 } from '@freik/media-core';
-import { Metadata } from '@freik/media-utils';
-import { MakePersistence } from '@freik/node-utils';
-import { promises as fsp } from 'fs';
-import path from 'path';
 import { SongWithPath, VAType } from '.';
 import { AudioFileIndex, MakeAudioFileIndex } from './AudioFileIndex';
 import { GetMetadataStore, IsFullMetadata } from './DbMetadata';
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
+import { Metadata } from '@freik/media-utils';
+import { MakePersistence } from '@freik/node-utils';
+import { promises as fsp } from 'fs';
+import path from 'path';
 
 // eslint-disable-next-line
 const log = MakeLogger('AudioDatabase', true);
