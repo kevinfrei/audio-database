@@ -105,23 +105,21 @@ export async function MakeAudioDatabase(
   const metadataCache = await GetMetadataStore(persist, 'metadataCache');
   const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
   let existingKeys: Map<string, SongKey> | null = null;
+
+  // Note: This is an IIFE!
   const newSongKey = (() => {
     const highestSongKey = persist.getItem('highestSongKey');
-    if (highestSongKey) {
-      log(`highestSongKey: ${highestSongKey}`);
-      return SeqNum('S', highestSongKey);
-    } else {
-      log('no highest song key found');
-      return SeqNum('S');
-    }
+    return highestSongKey ? SeqNum('S', highestSongKey) : SeqNum('S');
   })();
 
   function getSongKey(songPath: string) {
     if (existingKeys) {
-      return existingKeys.get(songPath) || newSongKey();
-    } else {
-      return newSongKey();
+      const cur = existingKeys.get(songPath);
+      if (cur) return cur;
     }
+    const newKey = newSongKey();
+    existingKeys?.set(songPath, newKey);
+    return newKey;
   }
 
   // If the key in this cache is an empty string, the song wasn't added
@@ -422,6 +420,7 @@ export async function MakeAudioDatabase(
         err(`Can't find the album for the song ${theSong.title}`);
       }
     }
+    fileNamesSeen.delete(theSong.path);
     return true;
   }
 
@@ -583,7 +582,7 @@ export async function MakeAudioDatabase(
         new Map([...data.dbSongs.values()].map((val) => [val.path, val.key])),
       ),
     );
-    await persist.setItemAsync('highestSongKey', newSongKey());
+    // await persist.setItemAsync('highestSongKey', newSongKey().substr(1));
   }
 
   function rebuildIndex() {

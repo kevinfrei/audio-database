@@ -5,7 +5,7 @@ import { h32 } from 'xxhashjs';
 
 // eslint-disable-next-line
 const log = MakeLogger('AudioFileIndex', true);
-const err = MakeError('AudioFileInde-err');
+const err = MakeError('AudioFileIndex-err');
 
 const existingSongKeys = new Map<number, [string, string]>();
 
