@@ -47,15 +47,15 @@ export type AudioDatabase = {
   addAudioFileIndex: (idx: AudioFileIndex) => Promise<void>;
   getPicture: (key: AlbumKey) => string;
   setPicture: (key: AlbumKey, filepath: string) => void;
-  addSongFromPath: (filepath: string) => void;
+  addSongFromPath: (filepath: string) => void; // BasicTests
   addOrUpdateSong: (md: FullMetadata) => void;
-  delSongByPath: (filepath: string) => boolean;
-  delSongByKey: (key: SongKey) => boolean;
+  delSongByPath: (filepath: string) => boolean; // BasicTests
+  delSongByKey: (key: SongKey) => boolean; // BasicTests
   // For all the 'parsed' data
-  getFlatDatabase: () => FlatAudioDatabase;
+  getFlatDatabase: () => FlatAudioDatabase; // BasicTests
   // Loading/saving
-  load: (filename: string) => Promise<boolean>;
-  save: (filename: string) => Promise<void>;
+  load: (filename: string) => Promise<boolean>; // BasicTests
+  save: (filename: string) => Promise<void>; // BasicTests
   // Updating
   refresh: () => Promise<boolean>;
   // API

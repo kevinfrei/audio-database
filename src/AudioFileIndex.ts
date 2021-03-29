@@ -1,5 +1,6 @@
 import { MakeError, MakeLogger, Type } from '@freik/core-utils';
-import { Dirent, promises as fsp } from 'fs';
+import { ForFiles } from '@freik/node-utils';
+import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
 
@@ -28,6 +29,8 @@ function getSongKey(prefix: string, fragmentNum: number, songPath: string) {
 
 const audioTypes = new Set(['.flac', '.mp3', '.aac', '.m4a']);
 const imageTypes = new Set(['.png', '.jpg', '.jpeg']);
+const allTypes = new Set([...audioTypes, ...imageTypes]);
+
 function isOfType(
   filename: string,
   types: Set<string>,
@@ -171,56 +174,27 @@ export async function MakeAudioFileIndex(
   ): Promise<void> {
     const oldSongList = songList;
     const oldPicList = picList;
-    const queue: string[] = [location];
     const newSongList: string[] = [];
     const newPicList: string[] = [];
     const newLastScanTime = new Date();
-    while (queue.length > 0) {
-      const i = queue.pop();
-      let dirents: Dirent[] | null = null;
-      try {
-        if (i) {
-          dirents = await fsp.readdir(i, { withFileTypes: true });
+    await ForFiles(
+      location,
+      (filePath: string) => {
+        if (isMusicType(filePath)) {
+          newSongList.push(filePath);
+        } else if (isImageType(filePath)) {
+          newPicList.push(filePath);
         } else {
-          continue;
+          return false;
         }
-      } catch (e) {
-        err(`Unable to read ${i || '<unknown>'}`);
-        continue;
-      }
-      if (!dirents) {
-        continue;
-      }
-      for (const dirent of dirents) {
-        try {
-          if (dirent.isSymbolicLink()) {
-            const ap = await fsp.realpath(path.join(i, dirent.name));
-            const st = await fsp.stat(ap);
-            if (st.isDirectory()) {
-              queue.push(ap);
-            } else if (st.isFile()) {
-              if (isMusicType(ap)) {
-                newSongList.push(ap);
-              } else if (isImageType(ap)) {
-                newPicList.push(ap);
-              }
-            }
-          } else if (dirent.isDirectory()) {
-            queue.push(path.join(i, dirent.name));
-          } else if (dirent.isFile()) {
-            if (isMusicType(dirent.name)) {
-              newSongList.push(path.join(i, dirent.name));
-            } else if (isImageType(dirent.name)) {
-              newPicList.push(path.join(i, dirent.name));
-            }
-          }
-        } catch (e) {
-          err('Unable to process dirent:');
-          err(dirent);
-          continue;
-        }
-      }
-    }
+        return true;
+      },
+      {
+        recurse: true,
+        keepGoing: true,
+        fileTypes: [...allTypes],
+      },
+    );
     songList = newSongList.sort(pathCompare);
     picList = newPicList.sort(pathCompare);
     lastScanTime = newLastScanTime;
