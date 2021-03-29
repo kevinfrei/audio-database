@@ -341,6 +341,77 @@ export async function MakeAudioDatabase(
 
   function delSongByKey(key: SongKey): boolean {
     // TODO: Make this work
+    // First, remove the song itself, then remove the reference to the artist
+    // and album. If the artist & album are now "empty" remove them as well
+
+    const theSong = data.dbSongs.get(key);
+    if (theSong === undefined) {
+      return false;
+    }
+    if (data.dbSongs.delete(key)) {
+      err(`Unabled to delete the song:${theSong.title}`);
+      return false;
+    }
+    const artists = new Set([...theSong.artistIds, ...theSong.secondaryIds]);
+    // Remove the song from the album
+    const theAlbum = data.dbAlbums.get(theSong.albumId);
+    if (theAlbum) {
+      const theEntry = theAlbum.songs.indexOf(key);
+      if (theEntry >= 0) {
+        theAlbum.songs.splice(theEntry, 1);
+        if (theAlbum.songs.length === 0) {
+          // Delete the album (shouldn't need to remove artists)
+          if (!data.dbAlbums.delete(theAlbum.key)) {
+            err(`Unable to delete the artist ${theAlbum.title}`);
+          }
+          // Delete the album from the name index
+          const nameElem = data.albumTitleIndex.get(
+            normalizeName(theAlbum.title),
+          );
+          if (nameElem === undefined) {
+            err(`Unable to find ${theAlbum.title} in the title index`);
+          } else {
+            const elemNum = nameElem.indexOf(theAlbum.key);
+            if (elemNum >= 0) {
+              nameElem.splice(elemNum, 1);
+              if (nameElem.length === 0) {
+                data.albumTitleIndex.delete(normalizeName(theAlbum.title));
+              }
+            }
+          }
+        }
+      } else {
+        err(`Can't remove song ${theSong.title} from album ${theAlbum.title}`);
+      }
+    }
+    for (const artistKey of artists) {
+      const theArtist = data.dbArtists.get(artistKey);
+      if (theArtist) {
+        const theEntry = theArtist.songs.indexOf(key);
+        if (theEntry >= 0) {
+          theArtist.songs.splice(theEntry, 1);
+          if (theArtist.songs.length === 0) {
+            if (theArtist.albums.length !== 0) {
+              err(`${theArtist.name} still has albums, which seems wrong`);
+            }
+            if (!data.dbArtists.delete(theArtist.key)) {
+              err(`Unable to delete the artist ${theArtist.name}`);
+            }
+            if (!data.artistNameIndex.delete(normalizeName(theArtist.name))) {
+              err(
+                `Unable to delete the artist ${theArtist.name} from name index`,
+              );
+            }
+          }
+        } else {
+          err(
+            `Can't remove song ${theSong.title} from artist ${theArtist.name}`,
+          );
+        }
+      } else {
+        err(`Can't find the album for the song ${theSong.title}`);
+      }
+    }
     return false;
   }
 
@@ -358,8 +429,10 @@ export async function MakeAudioDatabase(
     }
 
     // Now, let's see if we can find this song
-    // TODO: Make this work
-
+    const songKey = getSongKey(filepath);
+    if (data.dbSongs.has(songKey)) {
+      return delSongByKey(songKey);
+    }
     return false;
   }
 
@@ -662,7 +735,7 @@ export async function MakeAudioDatabase(
 
   // Get the list of existing paths to song-keys
   const songHash = FTON.parse(
-    (await persist.getItemAsync('songHashIndex')) || '',
+    (await persist.getItemAsync('songHashIndex')) || '0',
   );
   existingKeys = Type.isMapOfStrings(songHash)
     ? songHash
