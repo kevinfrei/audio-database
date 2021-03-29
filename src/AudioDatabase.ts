@@ -28,7 +28,7 @@ import { GetMetadataStore, IsFullMetadata } from './DbMetadata';
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
 import { Metadata } from '@freik/media-utils';
-import { MakePersistence } from '@freik/node-utils';
+import { MakePersistence, Persist } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 
@@ -81,7 +81,7 @@ type PrivateAudioData = {
 };
 
 export async function MakeAudioDatabase(
-  localStorageLocation: string,
+  localStorageLocation: string | Persist,
 ): Promise<AudioDatabase> {
   /*
    * Private member data
@@ -99,7 +99,9 @@ export async function MakeAudioDatabase(
 
   const newAlbumKey = SeqNum('L');
   const newArtistKey = SeqNum('R');
-  const persist = MakePersistence(localStorageLocation);
+  const persist = Type.isString(localStorageLocation)
+    ? MakePersistence(localStorageLocation)
+    : localStorageLocation;
   const metadataCache = await GetMetadataStore(persist, 'metadataCache');
   const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
   let existingKeys: Map<string, SongKey> | null = null;
@@ -333,7 +335,12 @@ export async function MakeAudioDatabase(
       variations: md.variations,
     };
     album.songs.push(theSong.key);
-    allArtists.forEach((artist) => artist.songs.push(theSong.key));
+    allArtists.forEach((artist) => {
+      artist.songs.push(theSong.key);
+      if (artist.albums.indexOf(album.key) < 0) {
+        artist.albums.push(album.key);
+      }
+    });
     data.dbSongs.set(theSong.key, theSong);
     // Set this thing as appropriately "observed"
     fileNamesSeen.set(theSong.path, theSong.key);
@@ -348,7 +355,7 @@ export async function MakeAudioDatabase(
     if (theSong === undefined) {
       return false;
     }
-    if (data.dbSongs.delete(key)) {
+    if (!data.dbSongs.delete(key)) {
       err(`Unabled to delete the song:${theSong.title}`);
       return false;
     }
@@ -391,7 +398,10 @@ export async function MakeAudioDatabase(
         if (theEntry >= 0) {
           theArtist.songs.splice(theEntry, 1);
           if (theArtist.songs.length === 0) {
-            if (theArtist.albums.length !== 0) {
+            if (
+              theArtist.albums.length !== 1 &&
+              theArtist.albums[0] !== theSong.albumId
+            ) {
               err(`${theArtist.name} still has albums, which seems wrong`);
             }
             if (!data.dbArtists.delete(theArtist.key)) {
@@ -412,7 +422,7 @@ export async function MakeAudioDatabase(
         err(`Can't find the album for the song ${theSong.title}`);
       }
     }
-    return false;
+    return true;
   }
 
   function delSongByPath(filepath: string): boolean {
@@ -429,9 +439,8 @@ export async function MakeAudioDatabase(
     }
 
     // Now, let's see if we can find this song
-    const songKey = getSongKey(filepath);
-    if (data.dbSongs.has(songKey)) {
-      return delSongByKey(songKey);
+    if (data.dbSongs.has(key)) {
+      return delSongByKey(key);
     }
     return false;
   }
@@ -734,12 +743,16 @@ export async function MakeAudioDatabase(
    */
 
   // Get the list of existing paths to song-keys
-  const songHash = FTON.parse(
-    (await persist.getItemAsync('songHashIndex')) || '0',
-  );
-  existingKeys = Type.isMapOfStrings(songHash)
-    ? songHash
-    : new Map<string, SongKey>();
+  const maybeSongHash = await persist.getItemAsync('songHashIndex');
+  if (maybeSongHash) {
+    const songHash = FTON.parse(maybeSongHash);
+    if (Type.isMapOfStrings(songHash)) {
+      existingKeys = songHash;
+    }
+  }
+  if (!existingKeys) {
+    existingKeys = new Map<string, SongKey>();
+  }
 
   return {
     getSong: (key: SongKey) => data.dbSongs.get(key),
