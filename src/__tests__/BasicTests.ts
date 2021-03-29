@@ -1,13 +1,24 @@
 import { MakePersistence } from '@freik/node-utils';
 import { MakeAudioDatabase } from '../AudioDatabase';
+import fs, { promises as fsp } from 'fs';
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
+const {
+  songPath,
+  songPath2,
+  flatDBWithJustOne,
+  flatDBwithBoth,
+  flatDBwithSecond,
+} = JSON.parse(fs.readFileSync('./src/__tests__/data.json').toString()) as any;
+// Initialization if we need anything
+beforeAll(() => {
+  return;
+});
 
-it('Make an empty Audio Database', async () => {
-  const db = await MakeAudioDatabase(persist);
-  expect(db).toBeDefined();
-  const flat = db.getFlatDatabase();
-  expect(flat).toEqual({ albums: [], artists: [], songs: [] });
+afterAll(async () => {
+  // Clean-up after the test
+  await fsp.unlink('./src/__tests__/persist-basic/test.json');
+  return;
 });
 
 function swap<T>(items: T[]) {
@@ -16,123 +27,30 @@ function swap<T>(items: T[]) {
   items[1] = a;
 }
 
-it('Add some individual files to the db', async () => {
-  const songPath = '/The Artist - 2000 - The Album/01 - A Song.mp3';
-  const songPath2 = '/The Artist - 2000 - The Album/02 - Another Song.mp3';
-  const flatDBWithJustOne = {
-    songs: [
-      {
-        key: 'S1',
-        path: songPath,
-        secondaryIds: [],
-        title: 'A Song',
-        track: 1,
-        variations: undefined,
-        albumId: 'L0',
-        artistIds: ['R0'],
-      },
-    ],
-    albums: [
-      {
-        key: 'L0',
-        title: 'The Album',
-        vatype: '',
-        year: 2000,
-        primaryArtists: ['R0'],
-        songs: ['S1'],
-      },
-    ],
-    artists: [
-      {
-        key: 'R0',
-        name: 'The Artist',
-        albums: ['L0'],
-        songs: ['S1'],
-      },
-    ],
-  };
-  const flatDBwithBoth = {
-    songs: [
-      {
-        key: 'S1',
-        path: songPath,
-        secondaryIds: [],
-        title: 'A Song',
-        track: 1,
-        variations: undefined,
-        albumId: 'L1',
-        artistIds: ['R1'],
-      },
-      {
-        key: 'S2',
-        path: songPath2,
-        secondaryIds: [],
-        title: 'Another Song',
-        track: 2,
-        variations: undefined,
-        albumId: 'L1',
-        artistIds: ['R1'],
-      },
-    ],
-    albums: [
-      {
-        key: 'L1',
-        title: 'The Album',
-        vatype: '',
-        year: 2000,
-        primaryArtists: ['R1'],
-        songs: ['S1', 'S2'],
-      },
-    ],
-    artists: [
-      {
-        key: 'R1',
-        name: 'The Artist',
-        albums: ['L1'],
-        songs: ['S1', 'S2'],
-      },
-    ],
-  };
-  const flatDBwithSecond = {
-    songs: [
-      {
-        key: 'S2',
-        path: songPath2,
-        secondaryIds: [],
-        title: 'Another Song',
-        track: 2,
-        variations: undefined,
-        albumId: 'L1',
-        artistIds: ['R1'],
-      },
-    ],
-    albums: [
-      {
-        key: 'L1',
-        title: 'The Album',
-        vatype: '',
-        year: 2000,
-        primaryArtists: ['R1'],
-        songs: ['S2'],
-      },
-    ],
-    artists: [
-      {
-        key: 'R1',
-        name: 'The Artist',
-        albums: ['L1'],
-        songs: ['S2'],
-      },
-    ],
-  };
+it('Make an empty Audio Database', async () => {
   const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
+  const flat = db.getFlatDatabase();
+  expect(flat).toEqual({ albums: [], artists: [], songs: [] });
+});
+
+it('Add individual file to the db', async () => {
+  const db = await MakeAudioDatabase(persist);
   db.addSongFromPath(songPath);
   const flat = db.getFlatDatabase();
   expect(flat).toEqual(flatDBWithJustOne);
+});
+
+it('Delete file by path', async () => {
+  const db = await MakeAudioDatabase(persist);
+  db.addSongFromPath(songPath);
   expect(db.delSongByPath(songPath)).toEqual(true);
   const emptyFlat = db.getFlatDatabase();
   expect(emptyFlat).toEqual({ albums: [], artists: [], songs: [] });
+});
+
+it('Delete file by key', async () => {
+  const db = await MakeAudioDatabase(persist);
   db.addSongFromPath(songPath);
   db.addSongFromPath(songPath2);
   const biggerFlat = db.getFlatDatabase();
@@ -140,12 +58,31 @@ it('Add some individual files to the db', async () => {
   db.delSongByKey('S1');
   const secondFlat = db.getFlatDatabase();
   expect(secondFlat).toEqual(flatDBwithSecond);
+});
+
+it('Re-adding a file', async () => {
+  const db = await MakeAudioDatabase(persist);
+  db.addSongFromPath(songPath);
+  db.addSongFromPath(songPath2);
+  db.delSongByKey('S1');
   db.addSongFromPath(songPath);
   const finalFlat = db.getFlatDatabase();
-  // Just mutate the flatDBwithBoth for the new file order, since it doesn't
-  // actually matter
-  swap(flatDBwithBoth.songs);
-  swap(flatDBwithBoth.albums[0].songs);
-  swap(flatDBwithBoth.artists[0].songs);
-  expect(finalFlat).toEqual(flatDBwithBoth);
+  // Mutate flatDBwithBoth for the new file order
+  const newFlat = JSON.parse(JSON.stringify(flatDBwithBoth));
+  swap(newFlat.songs);
+  swap(newFlat.albums[0].songs);
+  swap(newFlat.artists[0].songs);
+  expect(finalFlat).toEqual(newFlat);
+});
+
+it('Save/Load consistency', async () => {
+  const db = await MakeAudioDatabase(persist);
+  db.addSongFromPath(songPath);
+  db.addSongFromPath(songPath2);
+  await db.save('test');
+  db.addSongFromPath('/a - 1999 - b/2 - song.flac');
+  const ld = await db.load('test');
+  expect(ld).toBe(true);
+  const loadedFlat = db.getFlatDatabase();
+  expect(loadedFlat).toEqual(flatDBwithBoth);
 });

@@ -682,7 +682,8 @@ export async function MakeAudioDatabase(
   }
 
   async function load(filename: string): Promise<boolean> {
-    const flattened = await persist.getItemAsync(filename);
+    const stringVal = await persist.getItemAsync(filename);
+    const flattened = FTON.parse(stringVal || '0');
     if (
       !flattened ||
       !Type.has(flattened, 'dbSongs') ||

@@ -1,0 +1,83 @@
+{
+    "songPath": "/The Artist - 2000 - The Album/01 - A Song.mp3",
+    "songPath2": "/The Artist - 2000 - The Album/02 - Another Song.mp3",
+    "flatDBWithJustOne": {
+        "songs": [{
+            "key": "S1",
+            "path": "/The Artist - 2000 - The Album/01 - A Song.mp3",
+            "secondaryIds": [],
+            "title": "A Song",
+            "track": 1,
+            "albumId": "L0",
+            "artistIds": ["R0"]
+        }],
+        "albums": [{
+            "key": "L0",
+            "title": "The Album",
+            "vatype": "",
+            "year": 2000,
+            "primaryArtists": ["R0"],
+            "songs": ["S1"]
+        }],
+        "artists": [
+            { "key": "R0", "name": "The Artist", "albums": ["L0"], "songs": ["S1"] }
+        ]
+    },
+    "flatDBwithBoth": {
+        "songs": [{
+                "key": "S1",
+                "path": "/The Artist - 2000 - The Album/01 - A Song.mp3",
+                "secondaryIds": [],
+                "title": "A Song",
+                "track": 1,
+                "albumId": "L0",
+                "artistIds": ["R0"]
+            },
+            {
+                "key": "S2",
+                "path": "/The Artist - 2000 - The Album/02 - Another Song.mp3",
+                "secondaryIds": [],
+                "title": "Another Song",
+                "track": 2,
+                "albumId": "L0",
+                "artistIds": ["R0"]
+            }
+        ],
+        "albums": [{
+            "key": "L0",
+            "title": "The Album",
+            "vatype": "",
+            "year": 2000,
+            "primaryArtists": ["R0"],
+            "songs": ["S1", "S2"]
+        }],
+        "artists": [{
+            "key": "R0",
+            "name": "The Artist",
+            "albums": ["L0"],
+            "songs": ["S1", "S2"]
+        }]
+    },
+    "flatDBwithSecond": {
+        "songs": [{
+            "key": "S2",
+            "path": "/The Artist - 2000 - The Album/02 - Another Song.mp3",
+            "secondaryIds": [],
+            "title": "Another Song",
+            "track": 2,
+            "albumId": "L0",
+            "artistIds": ["R0"]
+        }],
+        "albums": [{
+            "key": "L0",
+            "title": "The Album",
+            "vatype": "",
+            "year": 2000,
+            "primaryArtists": ["R0"],
+            "songs": ["S2"]
+        }],
+        "artists": [
+            { "key": "R0", "name": "The Artist", "albums": ["L0"], "songs": ["S2"] }
+        ]
+    }
+}
