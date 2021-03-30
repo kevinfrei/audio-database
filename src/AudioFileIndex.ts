@@ -30,7 +30,7 @@ function getSongKey(prefix: string, fragmentNum: number, songPath: string) {
 const audioTypes = new Set(['.flac', '.mp3', '.aac', '.m4a']);
 const imageTypes = new Set(['.png', '.jpg', '.jpeg']);
 const allTypes = [...audioTypes, ...imageTypes];
-const fileWatcher = MakeStringWatcher().addToWatchList(alXlTypes);
+const fileWatcher = MakeStringWatcher().addToWatchList(allTypes);
 
 function isOfType(
   filename: string,
