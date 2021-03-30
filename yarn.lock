@@ -499,10 +499,10 @@
   dependencies:
     "@freik/core-utils" "^0.10.0"
 
-"@freik/node-utils@^0.8.0", "@freik/node-utils@^0.8.1":
-  version "0.8.1"
-  resolved "https://registry.yarnpkg.com/@freik/node-utils/-/node-utils-0.8.1.tgz#0f8fa8c7a44057dd241f9c0a0d1554270e035283"
-  integrity sha512-Ef0LP04E1xgMJH3n2EUnQjCP1svxOZOdD5nm6xK3rnWHx9WM9NquNi3mXZ6X9gfIpArNORwsPMIR52Sr94RXSg==
+"@freik/node-utils@^0.8.0", "@freik/node-utils@^0.8.2":
+  version "0.8.2"
+  resolved "https://registry.yarnpkg.com/@freik/node-utils/-/node-utils-0.8.2.tgz#bc2de9334e8e4ea0e53779d98b3165a540778900"
+  integrity sha512-rSYxlz9n4sRl2pnAhfERWGukMvx3a89WY+mH5RL+j9C84jc3geUfneo6cdjUO1vn5NLlU/6IPcjmXfiVVxpXGQ==
   dependencies:
     "@freik/core-utils" "^0.14.0"
 
@@ -1951,9 +1951,9 @@ ejs@^3.1.5:
     jake "^10.6.1"
 
 electron-to-chromium@^1.3.649:
-  version "1.3.701"
-  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.701.tgz#5e796ed7ce88cd77bc7bf831cf311ef6b067c389"
-  integrity sha512-Zd9ofdIMYHYhG1gvnejQDvC/kqSeXQvtXF0yRURGxgwGqDZm9F9Fm3dYFnm5gyuA7xpXfBlzVLN1sz0FjxpKfw==
+  version "1.3.702"
+  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.702.tgz#39b8b6860b22806482ad07a8eaf35f861d4f3ce0"
+  integrity sha512-qJVUKFWQnF6wP7MmTngDkmm8/KPzaiTXNFOAg5j7DSa6J7kPou7mTBqC8jpUOxauQWwHR3pn4dMRdV8IE1xdtA==
 
 emittery@^0.7.1:
   version "0.7.2"
@@ -5353,9 +5353,9 @@ symbol-tree@^3.2.4:
   integrity sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==
 
 table@^6.0.4:
-  version "6.0.8"
-  resolved "https://registry.yarnpkg.com/table/-/table-6.0.8.tgz#b63f35af8d90601de282a3292226007a9429644f"
-  integrity sha512-OBAdezyozae8IvjHGXBDHByVkLCcsmffXUSj8LXkNb0SluRd4ug3GFCjk6JynZONIPhOkyr0Nnvbq1rlIspXyQ==
+  version "6.0.9"
+  resolved "https://registry.yarnpkg.com/table/-/table-6.0.9.tgz#790a12bf1e09b87b30e60419bafd6a1fd85536fb"
+  integrity sha512-F3cLs9a3hL1Z7N4+EkSscsel3z55XT950AvB05bwayrNg5T1/gykXtigioTAjbltvbMSJvvhFCbnf6mX+ntnJQ==
   dependencies:
     ajv "^8.0.1"
     is-boolean-object "^1.1.0"

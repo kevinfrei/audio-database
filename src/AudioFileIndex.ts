@@ -1,5 +1,5 @@
 import { MakeError, MakeLogger, Type } from '@freik/core-utils';
-import { ForFiles } from '@freik/node-utils';
+import { ForFiles, MakeStringWatcher, StringWatcher } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
@@ -29,7 +29,8 @@ function getSongKey(prefix: string, fragmentNum: number, songPath: string) {
 
 const audioTypes = new Set(['.flac', '.mp3', '.aac', '.m4a']);
 const imageTypes = new Set(['.png', '.jpg', '.jpeg']);
-const allTypes = new Set([...audioTypes, ...imageTypes]);
+const allTypes = [...audioTypes, ...imageTypes];
+const fileWatcher = MakeStringWatcher().addToWatchList(alXlTypes);
 
 function isOfType(
   filename: string,
@@ -78,15 +79,15 @@ type PathHandler = (pathName: string) => void;
 export type AudioFileIndex = {
   getHash: () => number;
   getLocation: () => string;
-  forEachAudioFile: (fn: PathHandler) => void;
   forEachImageFile: (fn: PathHandler) => void;
+  forEachAudioFile: (fn: PathHandler) => void;
   getLastScanTime: () => Date | null;
   // When we rescan files, look at file path diffs
   rescanFiles: (
-    addAudio: PathHandler,
-    delAudio: PathHandler,
-    addImage: PathHandler,
-    delImage: PathHandler,
+    addAudioFile: PathHandler,
+    delAudioFile: PathHandler,
+    addImageFile: PathHandler,
+    delImageFile: PathHandler,
   ) => Promise<void>;
 };
 
@@ -141,6 +142,7 @@ function SortedArrayDiff(
 export async function MakeAudioFileIndex(
   location: string,
   fragmentHash: number,
+  typesToWatch: StringWatcher,
 ): Promise<AudioFileIndex> {
   /*
    * "member" data goes here
