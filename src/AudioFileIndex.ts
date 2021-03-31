@@ -1,4 +1,5 @@
 import { MakeError, MakeLogger, Type } from '@freik/core-utils';
+import { SongKey } from '@freik/media-core';
 import { ForFiles, MakeStringWatcher, StringWatcher } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
@@ -10,9 +11,9 @@ const err = MakeError('AudioFileIndex-err');
 
 const existingSongKeys = new Map<number, [string, string]>();
 
-function getSongKey(prefix: string, fragmentNum: number, songPath: string) {
+function getSongKey(prefix: string, fragmentId: number, songPath: string) {
   if (songPath.startsWith(prefix)) {
-    let hash = h32(songPath, fragmentNum).toNumber();
+    let hash = h32(songPath, fragmentId).toNumber();
     while (existingSongKeys.has(hash)) {
       const val = existingSongKeys.get(hash);
       if (Type.isArray(val) && val[0] === prefix && songPath === val[1]) {
@@ -77,66 +78,29 @@ function getSharedPrefix(paths: string[]): string {
 type PathHandler = (pathName: string) => void;
 
 export type AudioFileIndex = {
-  getHash: () => number;
-  getLocation: () => string;
-  forEachImageFile: (fn: PathHandler) => void;
-  forEachAudioFile: (fn: PathHandler) => void;
-  getLastScanTime: () => Date | null;
+  indexForKey(key:SongKey): AudioFileIndex;
+  getHash() : number;
+  getLocation () : string;
+  songKeyForPath(pathName: string) : SongKey | void;
+  pathForSongKey(key: SongKey) : string | void;
+  forEachImageFile (fn: PathHandler): void;
+  forEachAudioFile (fn: PathHandler) : void;
+  getLastScanTime () : Date | null;
   // When we rescan files, look at file path diffs
-  rescanFiles: (
-    addAudioFile: PathHandler,
-    delAudioFile: PathHandler,
-    addImageFile: PathHandler,
-    delImageFile: PathHandler,
-  ) => Promise<void>;
+  rescanFiles (
+    addAudioFile?: PathHandler,
+    delAudioFile?: PathHandler,
+    addImageFile?: PathHandler,
+    delImageFile?: PathHandler,
+  ) : Promise<void>;
 };
 
-const nullFn = () => {
-  return;
-};
+const indexLookup = new Map<string, AudioFileIndex>();
 
-function pathCompare(a: string | null, b: string | null): number {
-  if (a === null) return b ? 1 : 0;
-  if (b === null) return a ? -1 : 0;
-  const m = a.toLocaleUpperCase();
-  const n = b.toLocaleUpperCase();
-  // Don't use localeCompare: it will make some things equal that aren't *quite*
-  return (m > n ? 1 : 0) - (m < n ? 1 : 0);
-}
-
-/* This requires that both arrays are already sorted */
-function SortedArrayDiff(
-  oldList: string[],
-  newList: string[],
-  delFn: PathHandler,
-  addFn: PathHandler,
-): void {
-  let oldIndex = 0;
-  let newIndex = 0;
-  let count = 0;
-  for (; oldIndex < oldList.length || newIndex < newList.length; ) {
-    const oldItem = oldIndex < oldList.length ? oldList[oldIndex] : null;
-    const newItem = newIndex < newList.length ? newList[newIndex] : null;
-    const comp = pathCompare(oldItem, newItem);
-    if (comp === 0) {
-      oldIndex++;
-      newIndex++;
-      continue;
-    } else if (comp < 0 && oldItem !== null) {
-      // old item goes "before" new item, so we've deleted old item
-      delFn(oldItem);
-      oldIndex++;
-      count--;
-    } else if (comp > 0 && newItem !== null) {
-      // new item goes "before" old item, so we've added new item
-      addFn(newItem);
-      newIndex++;
-      count++;
-    }
-  }
-  if (count !== 0) {
-    log(`Total delta from SortedArrayDiff: ${count}`);
-  }
+// Given a song key, this finds the file index that contains
+export function getIndexForKey(key:SongKey): AudioFileIndex | undefined {
+  const indexPortion = key.substring(1, key.indexOf(":"));
+  return indexLookup.get(indexPortion)
 }
 
 export async function MakeAudioFileIndex(
@@ -216,7 +180,7 @@ export async function MakeAudioFileIndex(
     songList = [];
     picList = [];
     // Just rebuild the file list, don't do any processing right now
-    await rescanFiles(nullFn, nullFn, nullFn, nullFn);
+    await rescanFiles();
     // TODO: Write the stuff we just read into the .emp file
     // Also: Do the rest of the AudioFileIndex stuff:
     // image caches
