@@ -1,6 +1,11 @@
 import { MakeError, MakeLogger, Type } from '@freik/core-utils';
 import { SongKey } from '@freik/media-core';
 import { ForFiles, MakeStringWatcher, StringWatcher } from '@freik/node-utils';
+import {
+  MakeFileIndex,
+  pathCompare,
+  SortedArrayDiff,
+} from '@freik/node-utils/lib/FileIndex';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
@@ -9,29 +14,19 @@ import { h32 } from 'xxhashjs';
 const log = MakeLogger('AudioFileIndex', true);
 const err = MakeError('AudioFileIndex-err');
 
-const existingSongKeys = new Map<number, [string, string]>();
-
-function getSongKey(prefix: string, fragmentId: number, songPath: string) {
-  if (songPath.startsWith(prefix)) {
-    let hash = h32(songPath, fragmentId).toNumber();
-    while (existingSongKeys.has(hash)) {
-      const val = existingSongKeys.get(hash);
-      if (Type.isArray(val) && val[0] === prefix && songPath === val[1]) {
-        break;
-      }
-      err(`songKey hash collision: "${songPath}"`);
-      hash = h32(songPath, hash).toNumber();
-    }
-    existingSongKeys.set(hash, [prefix, songPath]);
-    return `S${hash.toString(36)}`;
+const audioTypes = MakeStringWatcher().addToWatchList(
+  '.flac',
+  '.mp3',
+  '.aac',
+  '.m4a',
+);
+const imageTypes = MakeStringWatcher().addToWatchList('.png', '.jpg', '.jpeg');
+function watchTypes(pathName: string) {
+  if (path.basename(pathName).startsWith('.')) {
+    return imageTypes(pathName);
   }
-  throw Error(`Invalid prefix ${prefix} for songPath ${songPath}`);
+  return audioTypes(pathName) || imageTypes(pathName);
 }
-
-const audioTypes = new Set(['.flac', '.mp3', '.aac', '.m4a']);
-const imageTypes = new Set(['.png', '.jpg', '.jpeg']);
-const allTypes = [...audioTypes, ...imageTypes];
-const fileWatcher = MakeStringWatcher().addToWatchList(allTypes);
 
 function isOfType(
   filename: string,
@@ -43,10 +38,6 @@ function isOfType(
     types.has(path.extname(filename).toLowerCase())
   );
 }
-
-const isMusicType = (filename: string) => isOfType(filename, audioTypes);
-// Hidden images are fine for cover art (actually, maybe preferred!
-const isImageType = (filename: string) => isOfType(filename, imageTypes, true);
 
 function getSharedPrefix(paths: string[]): string {
   let curPrefix: string | null = null;
@@ -78,35 +69,35 @@ function getSharedPrefix(paths: string[]): string {
 type PathHandler = (pathName: string) => void;
 
 export type AudioFileIndex = {
-  indexForKey(key:SongKey): AudioFileIndex;
-  getHash() : number;
-  getLocation () : string;
-  songKeyForPath(pathName: string) : SongKey | void;
-  pathForSongKey(key: SongKey) : string | void;
-  forEachImageFile (fn: PathHandler): void;
-  forEachAudioFile (fn: PathHandler) : void;
-  getLastScanTime () : Date | null;
+  indexForKey(key: SongKey): AudioFileIndex;
+  getHash(): number;
+  getLocation(): string;
+  songKeyForPath(pathName: string): SongKey | void;
+  pathForSongKey(key: SongKey): string | void;
+  forEachImageFile(fn: PathHandler): void;
+  forEachAudioFile(fn: PathHandler): void;
+  getLastScanTime(): Date | null;
   // When we rescan files, look at file path diffs
-  rescanFiles (
+  rescanFiles(
     addAudioFile?: PathHandler,
     delAudioFile?: PathHandler,
     addImageFile?: PathHandler,
     delImageFile?: PathHandler,
-  ) : Promise<void>;
+  ): Promise<void>;
 };
 
 const indexLookup = new Map<string, AudioFileIndex>();
 
 // Given a song key, this finds the file index that contains
-export function getIndexForKey(key:SongKey): AudioFileIndex | undefined {
-  const indexPortion = key.substring(1, key.indexOf(":"));
-  return indexLookup.get(indexPortion)
+// SongKey's are formatted like this: S{hash-b16384}:{key-b64}
+export function getIndexForKey(key: SongKey): AudioFileIndex | undefined {
+  const indexPortion = key.substring(1, key.indexOf(':'));
+  return indexLookup.get(indexPortion);
 }
 
 export async function MakeAudioFileIndex(
   location: string,
   fragmentHash: number,
-  typesToWatch: StringWatcher,
 ): Promise<AudioFileIndex> {
   /*
    * "member" data goes here
@@ -115,78 +106,38 @@ export async function MakeAudioFileIndex(
   let songList: string[] = [];
   let picList: string[] = [];
   let lastScanTime: Date | null = null;
+  const prefix = location + (location[location.length] === '/' ? '' : '/');
+  const hashEnc = Uencode(fragmentHash);
+  // TODO: Provide a file index location override, yes?
+  const fileIndex = MakeFileIndex(location, watchTypes);
 
-  // TODO: Read this stuff from disk, either from the MDF cache,
-  // or directly from the path provided
-  async function loadExistingFileIndex(): Promise<boolean> {
-    try {
-      const dir = await fsp.opendir(path.join(location, '.emp'));
-      await dir.close();
-      // TODO: Make this check it for validity
-      return true;
-    } catch (e) {
-      /* */
-    }
-    return false;
-  }
+  // A hash table of h32's to path-names
+  const existingSongKeys = new Map<number, string>();
 
-  // Rescan the location, calling a function for each add/delete of image
-  // or audio files
-  async function rescanFiles(
-    addAudioFn: PathHandler,
-    delAudioFn: PathHandler,
-    addImageFn: PathHandler,
-    delImageFn: PathHandler,
-  ): Promise<void> {
-    const oldSongList = songList;
-    const oldPicList = picList;
-    const newSongList: string[] = [];
-    const newPicList: string[] = [];
-    const newLastScanTime = new Date();
-    await ForFiles(
-      location,
-      (filePath: string) => {
-        if (isMusicType(filePath)) {
-          newSongList.push(filePath);
-        } else if (isImageType(filePath)) {
-          newPicList.push(filePath);
-        } else {
-          return false;
+  function getSongKey(songPath: string) {
+    if (songPath.startsWith(prefix)) {
+      const shortPath = songPath.substr(prefix.length);
+      let hash = h32(shortPath, fragmentHash).toNumber();
+      while (existingSongKeys.has(hash)) {
+        const val = existingSongKeys.get(hash);
+        if (Type.isString(val) && pathCompare(val, shortPath) === 0) {
+          break;
         }
-        return true;
-      },
-      {
-        recurse: true,
-        keepGoing: true,
-        fileTypes: [...allTypes],
-      },
-    );
-    songList = newSongList.sort(pathCompare);
-    picList = newPicList.sort(pathCompare);
-    lastScanTime = newLastScanTime;
-    // Alright, we've got the new list, now call the handlers to
-    // post-process any differences from the previous list
-    SortedArrayDiff(oldSongList, songList, delAudioFn, addAudioFn);
-    SortedArrayDiff(oldPicList, picList, delImageFn, addImageFn);
-    // TODO: Save the new list back to disk in the .emp file index
+        err(`songKey hash collision: "${songPath}"`);
+        // Feed the old hash into the new hash to get a new value, cuz y not?
+        hash = h32(songPath, hash).toNumber();
+      }
+      existingSongKeys.set(hash, shortPath);
+      return `S${hashEnc}:${Uencode(hash)}`;
+    }
+    throw Error(`Invalid prefix ${prefix} for songPath ${songPath}`);
   }
-
   /*
    *
    * Begin 'constructor' code here:
    *
    */
-  if (!(await loadExistingFileIndex())) {
-    songList = [];
-    picList = [];
-    // Just rebuild the file list, don't do any processing right now
-    await rescanFiles();
-    // TODO: Write the stuff we just read into the .emp file
-    // Also: Do the rest of the AudioFileIndex stuff:
-    // image caches
-    // file metadata cache
-    // file metadata override
-  }
+
   return {
     // Don't know if this is necessary
     getHash: () => fragmentHash,

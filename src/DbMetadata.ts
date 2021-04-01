@@ -191,7 +191,7 @@ export function IsFullMetadata(obj: unknown): obj is FullMetadata {
   return true;
 }
 
-function MakeMetadataStore(persist: Persist, name: string) {
+function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
   // The lookup for metadata
   const store = new Map<string, MinimumMetadata>();
   // A flag to keep track of if we've changed anything

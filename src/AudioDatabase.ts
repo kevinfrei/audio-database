@@ -102,6 +102,7 @@ export async function MakeAudioDatabase(
   const persist = Type.isString(localStorageLocation)
     ? MakePersistence(localStorageLocation)
     : localStorageLocation;
+  // TODO: Migrate this into the AFI
   const metadataCache = await GetMetadataStore(persist, 'metadataCache');
   const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
   let existingKeys: Map<string, SongKey> | null = null;
@@ -481,6 +482,7 @@ export async function MakeAudioDatabase(
     return false;
   }
 
+  // TODO: Delegate this to the index
   async function handleAlbumCovers(idx: AudioFileIndex) {
     // Get all pictures from each directory.
     // Find the biggest and make it the album picture for any albums in that dir
@@ -540,6 +542,7 @@ export async function MakeAudioDatabase(
   async function addAudioFileIndex(idx: AudioFileIndex): Promise<void> {
     // Keep this thing around for future updating when the metadata
     // caching is moved into the file index
+    // TODO: Migrate metadata caching/overrides to the AFI
     data.dbAudioIndices.push(idx);
     const tryHarder: string[] = [];
     idx.forEachAudioFile((pathName: string) => {
@@ -643,27 +646,17 @@ export async function MakeAudioDatabase(
     };
   }
 
+  // Run a full rescan, dealing with new files/deletion of old files
   async function refresh(): Promise<boolean> {
     if (await singleWaiter.wait()) {
       try {
-        // TODO: run a database refresh and then send the updated database
-        // Also: It should rebuild the keyword index
         await Promise.all(
+          // TODO: Also handle adding/deleting/changing images?
           data.dbAudioIndices.map((afi) =>
-            afi.rescanFiles(
-              addSongFromPath,
-              () => {
-                /* */
-              },
-              () => {
-                /* */
-              },
-              () => {
-                /* */
-              },
-            ),
+            afi.rescanFiles(addSongFromPath, delSongByPath),
           ),
         );
+        // TODO: It should rebuild the keyword index
       } finally {
         singleWaiter.leave();
       }
@@ -735,6 +728,17 @@ export async function MakeAudioDatabase(
         })),
       }),
     );
+  }
+
+  async function updateMetadata(
+    fullPath: string,
+    newMetadata: Partial<FullMetadata>,
+  ): Promise<void> {
+    // Update this to delete the old song and add the new one...
+    log('NYI');
+    return new Promise(() => {
+      log("no, really: This isn't impemented yet");
+    });
   }
   /*
    *
