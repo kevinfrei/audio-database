@@ -10,7 +10,6 @@ import {
 import { Attributes, FullMetadata } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
 import { Persist } from '@freik/node-utils';
-import { AudioDatabase } from '.';
 
 // eslint-disable-next-line @typescript-eslint/unbound-method
 const { RawMetadata, FromFileAsync } = Metadata;
@@ -304,7 +303,7 @@ export async function GetMetadataStore(
   if (!(await mdc.load())) log(`Loading Metadata Store "${name}" failed`);
   return mdc;
 }
-
+/*
 let mdSaveTimer: NodeJS.Timeout | null = null;
 
 /**
@@ -315,6 +314,7 @@ let mdSaveTimer: NodeJS.Timeout | null = null;
  * override file name or internal metadata with
  * @returns Promise
  */
+/*
 export async function setMediaInfoForSong(
   audioDatabase: AudioDatabase,
   persist: Persist,
@@ -370,3 +370,4 @@ export async function getMediaInfoForSong(
     return data;
   }
 }
+*/

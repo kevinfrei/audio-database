@@ -1,11 +1,11 @@
 import {
-  Operations,
   FTON,
   MakeError,
   MakeLogger,
+  MakeSingleWaiter,
+  Operations,
   SeqNum,
   Type,
-  MakeSingleWaiter,
 } from '@freik/core-utils';
 import {
   NoArticlesNormalizedStringCompare,
@@ -21,16 +21,16 @@ import {
   FullMetadata,
   SongKey,
 } from '@freik/media-core';
+import { MakePersistence, Persist } from '@freik/node-utils';
+import path from 'path';
 import { SongWithPath, VAType } from '.';
 import {
   AudioFileIndex,
-  getIndexForPath,
+  GetIndexForPath,
   MakeAudioFileIndex,
 } from './AudioFileIndex';
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
-import { MakePersistence, Persist } from '@freik/node-utils';
-import path from 'path';
 
 // eslint-disable-next-line
 const log = MakeLogger('AudioDatabase', true);
@@ -110,7 +110,7 @@ export async function MakeAudioDatabase(
   let existingKeys: Map<string, SongKey> | null = null;
 
   function getSongKey(songPath: string): string {
-    const index = getIndexForPath(songPath);
+    const index = GetIndexForPath(songPath);
     if (!index) {
       throw new Error(`Can't find an index for the path ${songPath}`);
     }
@@ -415,7 +415,7 @@ export async function MakeAudioDatabase(
   }
 
   function delSongByPath(filepath: string): boolean {
-    const idx = getIndexForPath(filepath);
+    const idx = GetIndexForPath(filepath);
     if (!idx) {
       return false;
     }
@@ -427,7 +427,7 @@ export async function MakeAudioDatabase(
   // Returns true if we should look inside the file for metadata
   async function addSongFromPath(filePath: string): Promise<boolean> {
     // First, figure out if this is from an index or not
-    const afi = getIndexForPath(filePath);
+    const afi = GetIndexForPath(filePath);
     if (!afi) {
       return false;
     }
@@ -596,7 +596,7 @@ export async function MakeAudioDatabase(
     newMetadata: Partial<FullMetadata>,
   ): Promise<boolean> {
     // Update this to delete the old song and add the new one...
-    const indexForPath = getIndexForPath(fullPath);
+    const indexForPath = GetIndexForPath(fullPath);
     if (!indexForPath) {
       return false;
     }

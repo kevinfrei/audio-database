@@ -1,42 +1,41 @@
 import { MakeError, MakeLogger, ToU8, Type } from '@freik/core-utils';
-import { promises as fsp } from 'fs';
-import { SongKey, FullMetadata, SimpleMetadata } from '@freik/media-core';
+import { FullMetadata, SimpleMetadata, SongKey } from '@freik/media-core';
+import { Metadata } from '@freik/media-utils';
 import { MakePersistence, MakeStringWatcher, Persist } from '@freik/node-utils';
-import {
-  MakeFileIndex,
-  pathCompare,
-  Watcher,
-} from '@freik/node-utils/lib/FileIndex';
+import { hideFile } from '@freik/node-utils/lib/file';
+import { MakeFileIndex, pathCompare } from '@freik/node-utils/lib/FileIndex';
+import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
 import { GetMetadataStore, IsFullMetadata } from './DbMetadata';
-import { hideFile } from '@freik/node-utils/lib/file';
-import { Metadata } from '@freik/media-utils';
 
 // eslint-disable-next-line
 const log = MakeLogger('AudioFileIndex', true);
 const err = MakeError('AudioFileIndex-err');
 
-type PathHandler = (pathName: string) => void | Promise<void>;
+type PathHandlerAsync = (pathName: string) => Promise<void>;
+type PathHandlerSync = (pathName: string) => void;
+type PathHandlerEither = PathHandlerSync | PathHandlerAsync;
 
 export type AudioFileIndex = {
   getHash(): number;
   getLocation(): string;
-  indexForKey(key: SongKey): AudioFileIndex | undefined;
   getSongKey(songPath: string): SongKey;
   /*
   songKeyForPath(pathName: string): SongKey | void;
   pathForSongKey(key: SongKey): string | void;
   */
-  forEachImageFile(fn: PathHandler): void;
-  forEachAudioFile(fn: PathHandler): void;
+  forEachImageFile(fn: PathHandlerAsync): Promise<void>;
+  forEachAudioFile(fn: PathHandlerAsync): Promise<void>;
+  forEachImageFileSync(fn: PathHandlerSync): void;
+  forEachAudioFileSync(fn: PathHandlerSync): void;
   getLastScanTime(): Date | null;
   // When we rescan files, look at file path diffs
   rescanFiles(
-    addAudioFile?: PathHandler,
-    delAudioFile?: PathHandler,
-    addImageFile?: PathHandler,
-    delImageFile?: PathHandler,
+    addAudioFile?: PathHandlerEither,
+    delAudioFile?: PathHandlerEither,
+    addImageFile?: PathHandlerEither,
+    delImageFile?: PathHandlerEither,
   ): Promise<void>;
   updateMetadata(
     keyOrPath: SongKey | string,
@@ -60,13 +59,6 @@ function watchTypes(pathName: string) {
   return audioTypes(lcase) || imageTypes(lcase);
 }
 
-function isOfType(filename: string, types: Watcher, hidden?: boolean): boolean {
-  return (
-    (hidden || !path.basename(filename).startsWith('.')) &&
-    types(path.extname(filename).toLowerCase())
-  );
-}
-
 // An "audio data fragment" is a list of files and metadata info.
 // The idea is that it should be a handful of files to read, instead of an
 // entire directory structure to scan (i.e. fast, and easy to update)
@@ -84,12 +76,12 @@ const lengthSortedPaths: IndexLocation[] = [];
 
 // Given a song key, this finds the file index that contains
 // SongKey's are formatted like this: S{hash-b16384}:{key-b64}
-export function getIndexForKey(key: SongKey): AudioFileIndex | undefined {
+export function GetIndexForKey(key: SongKey): AudioFileIndex | undefined {
   const indexPortion = key.substring(1, key.indexOf(':'));
   return indexKeyLookup.get(indexPortion);
 }
 
-export function getIndexForPath(pathName: string): AudioFileIndex | undefined {
+export function GetIndexForPath(pathName: string): AudioFileIndex | undefined {
   for (const { location, index } of lengthSortedPaths) {
     if (pathCompare(pathName.substring(0, location.length), location) === 0) {
       return index;
@@ -147,14 +139,27 @@ export async function MakeAudioFileIndex(
     getHash: () => fragmentHash,
     getLocation: () => location,
     getLastScanTime: () => lastScanTime,
-    indexForKey: getIndexForKey,
     getSongKey,
-    forEachImageFile: (fn: PathHandler) => picList.forEach(fn),
-    forEachAudioFile: (fn: PathHandler) => songList.forEach(fn),
+    forEachImageFile,
+    forEachAudioFile,
+    forEachImageFileSync: (fn: PathHandlerSync) => picList.forEach(fn),
+    forEachAudioFileSync: (fn: PathHandlerSync) => songList.forEach(fn),
     rescanFiles,
     updateMetadata,
     getMetadataForSong,
   };
+
+  async function forEachImageFile(fn: PathHandlerAsync): Promise<void> {
+    for (const pic of picList) {
+      await fn(pic);
+    }
+  }
+
+  async function forEachAudioFile(fn: PathHandlerAsync): Promise<void> {
+    for (const song of songList) {
+      await fn(song);
+    }
+  }
 
   function getShortPath(songPath: string): string {
     if (path.isAbsolute(songPath)) {
@@ -184,9 +189,13 @@ export async function MakeAudioFileIndex(
   }
 
   const indexHashString = addIndex(fragmentHash, location, res);
-  // TODO: Provide a file index location override, yes?
+  // TODO: Provide a file index location override, maybe?
   const persist: Persist = await getOrCreateStorage();
-  const fileIndex = MakeFileIndex(location, watchTypes, persist.getLocation());
+  const fileIndex = await MakeFileIndex(
+    location,
+    watchTypes,
+    persist.getLocation(),
+  );
 
   // A hash table of h32's to path-names
   const existingSongKeys = new Map<number, string>();
@@ -211,16 +220,68 @@ export async function MakeAudioFileIndex(
   const metadataCache = await GetMetadataStore(persist, 'metadataCache');
   const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
 
+  function updateList(
+    list: string[],
+    adds: Set<string>,
+    dels: Set<string>,
+  ): string[] {
+    return list.concat([...adds]).filter((val) => !dels.has(val));
+  }
   async function rescanFiles(
-    addAudioFile?: PathHandler,
-    delAudioFile?: PathHandler,
-    addImageFile?: PathHandler,
-    delImageFile?: PathHandler,
+    addAudioFile?: PathHandlerEither,
+    delAudioFile?: PathHandlerEither,
+    addImageFile?: PathHandlerEither,
+    delImageFile?: PathHandlerEither,
   ) {
-    // TODO: Make this work
-    return new Promise<void>(() => {
-      /* */
-    });
+    const audioAdds = new Set<string>();
+    const imageAdds = new Set<string>();
+    const audioDels = new Set<string>();
+    const imageDels = new Set<string>();
+    await fileIndex.rescanFiles(
+      async (pathName: string) => {
+        if (audioTypes(pathName)) {
+          if (addAudioFile) {
+            const aaf = addAudioFile(pathName);
+            if (Type.isPromise(aaf)) {
+              await aaf;
+            }
+          }
+          audioAdds.add(pathName);
+        }
+        if (imageTypes(pathName)) {
+          if (addImageFile) {
+            const aif = addImageFile(pathName);
+            if (Type.isPromise(aif)) {
+              await aif;
+            }
+          }
+          imageAdds.add(pathName);
+        }
+      },
+      async (pathName: string) => {
+        if (audioTypes(pathName)) {
+          if (delAudioFile) {
+            const daf = delAudioFile(pathName);
+            if (Type.isPromise(daf)) {
+              await daf;
+            }
+          }
+          audioDels.add(pathName);
+        }
+        if (imageTypes(pathName)) {
+          if (delImageFile) {
+            const dif = delImageFile(pathName);
+            if (Type.isPromise(dif)) {
+              await dif;
+            }
+          }
+          imageDels.add(pathName);
+        }
+      },
+    );
+    songList = updateList(songList, audioAdds, audioDels);
+    picList = updateList(picList, imageAdds, imageDels);
+    lastScanTime = new Date();
   }
 
   async function updateMetadata(

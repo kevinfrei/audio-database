@@ -1,6 +1,6 @@
 import { MakePersistence } from '@freik/node-utils';
-import { MakeAudioDatabase } from '../AudioDatabase';
 import fs, { promises as fsp } from 'fs';
+import { MakeAudioDatabase } from '../AudioDatabase';
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
 const {

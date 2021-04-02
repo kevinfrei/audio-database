@@ -470,32 +470,34 @@
   resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.10.0.tgz#8c483b4bf8dce369977748bef4fac03e0630e9d6"
   integrity sha512-mMkgPDADuqNhaU37hmyh2iiadaevg2nR8GN1EJXzA6mUz5XSbZ/ZzvnHmdU3oUDE16o37RPv37uhDVO1rM66sw==
 
-"@freik/core-utils@^0.14.0", "@freik/core-utils@^0.14.2":
-  version "0.14.3"
-  resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.14.3.tgz#81f1a3ff53f9513bea3cbea7ef2debc98cc71f6a"
-  integrity sha512-VbTznQvBN/5hrfzyDpeTqdmUglmlCBv9Bkhz1WlfSACY1pFIaRnjrYJVXqtaVi8XTmX52EG7w8/A/b/xxMvHrA==
+"@freik/core-utils@^0.16.0":
+  version "0.16.0"
+  resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.16.0.tgz#c937150e6b419cc1c306fec62cbd4d51a11eb383"
+  integrity sha512-YBz203X+S0VcvryMyeZcBjwvOrj999Q5qZw5L+BuawuLelo/Pc4hOcQMcEQJYKWVXjszvRUjTqHMBr891xpHqQ==
 
-"@freik/core-utils@^0.15.0":
-  version "0.15.0"
-  resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.15.0.tgz#a5c6ea2465e065390e8fde4613d81ff6240699d4"
-  integrity sha512-Lm7jyU6xujQOdnaxCJTrCzao+sD0CfJ0FeAAZzretMpWahidn5/nmce8byx0uwuKGg3BFMUQIM9s19XOhl+fNw==
-
-"@freik/media-core@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@freik/media-core/-/media-core-0.3.0.tgz#8973445fca59db7e9990cdf61f186c01665e723a"
-  integrity sha512-Wurq3A1RKI/U3s0dZpAYDe9MC4sTgPyeqPDob0XbWP2SU0qGECe9q6xH4o/F3Ap+zAxunnh6rBI0pY4d9V5V3g==
+"@freik/media-core@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@freik/media-core/-/media-core-0.3.1.tgz#23129d9614f3afe3d4f56e23fc9404ba9425e238"
+  integrity sha512-aN88fkcwpvx9gS+Y2Y09PwqZK42ZQmmcEdDwR62WTmzRwCLiHmsUFjCH74r110onvTd+ZYcE6K7Se7ZMRmQ25w==
   dependencies:
-    "@freik/core-utils" "^0.14.0"
+    "@freik/core-utils" "^0.16.0"
 
-"@freik/media-utils@^0.10.0":
-  version "0.10.0"
-  resolved "https://registry.yarnpkg.com/@freik/media-utils/-/media-utils-0.10.0.tgz#b827aab82dc45686758edaf4fe370e3e76333024"
-  integrity sha512-8P1SgIqRfYS9lJ4mgr02WRQqDFOcYlb/qFXqDiL8dVG8EKLnNTXExLtdHsEHHnJebLPRy0DSjWd577Oxot1CDw==
+"@freik/media-utils@^0.10.1":
+  version "0.10.1"
+  resolved "https://registry.yarnpkg.com/@freik/media-utils/-/media-utils-0.10.1.tgz#a20130a61a3485cf88685a2a6fa888e2894c622a"
+  integrity sha512-e7utIKNJUK609jcUakYGLEbQk5jlYpZuXu9ZIwkqJJ/QvxuxeZ+KAkRP+tOCLfeOOta4kHYB6+525LeCb4Yp9g==
   dependencies:
-    "@freik/core-utils" "^0.14.0"
-    "@freik/media-core" "^0.3.0"
-    "@freik/node-utils" "^0.8.0"
+    "@freik/core-utils" "^0.16.0"
+    "@freik/media-core" "^0.3.1"
+    "@freik/node-utils" "^0.9.2"
     music-metadata "^7.8.1"
+
+"@freik/node-utils@^0.10.0":
+  version "0.10.0"
+  resolved "https://registry.yarnpkg.com/@freik/node-utils/-/node-utils-0.10.0.tgz#7b61b8f5c8d118820269010beaf38907da856e97"
+  integrity sha512-NmE3w/1doSfwCWUIEAPiF4Vdh0VOGS7QBS3vuiRZAQzfmsmC+KUxReS/u2UCbHafnI+gK4XaOavM5/2pF1KWfw==
+  dependencies:
+    "@freik/core-utils" "^0.16.0"
 
 "@freik/node-utils@^0.6.0":
   version "0.6.0"
@@ -504,12 +506,12 @@
   dependencies:
     "@freik/core-utils" "^0.10.0"
 
-"@freik/node-utils@^0.8.0", "@freik/node-utils@^0.8.4":
-  version "0.8.4"
-  resolved "https://registry.yarnpkg.com/@freik/node-utils/-/node-utils-0.8.4.tgz#6706b68202babcf2fc9387c42dcd5a341bccc8e0"
-  integrity sha512-BH4ve75UxG3AFJDVSBYRlpGo/h0pZ2P/2DXQ54BnyYVuMH+qugRWLXp3hYHWHacM6SHhdju7PIHNslUyn12SmA==
+"@freik/node-utils@^0.9.2":
+  version "0.9.2"
+  resolved "https://registry.yarnpkg.com/@freik/node-utils/-/node-utils-0.9.2.tgz#8245fd7321e0db5dddb10e5a3dbfa834c729e30b"
+  integrity sha512-FQ8SVtgdbSV1Q1qHAqfliz279/lCPvv961s33gcp3OviefmzzZ8nfm8Pvssr3fP+Br3tgglUuu70yHcVgvf78A==
   dependencies:
-    "@freik/core-utils" "^0.14.2"
+    "@freik/core-utils" "^0.16.0"
 
 "@hapi/hoek@^9.0.0":
   version "9.1.1"
@@ -1083,9 +1085,9 @@ ajv@^6.10.0, ajv@^6.12.3, ajv@^6.12.4:
     uri-js "^4.2.2"
 
 ajv@^8.0.1:
-  version "8.0.4"
-  resolved "https://registry.yarnpkg.com/ajv/-/ajv-8.0.4.tgz#7dc77632eb5dcde646b3aa18dd3bfe0d8965f379"
-  integrity sha512-v1qwknPv7rNGqtiaC4ywb3OZ3LNrEjbJL5igAe8eTbXOj8ye0XVul2pFRulwl/j3QfUKdQ/J9HZaYfQCnR7cvA==
+  version "8.0.5"
+  resolved "https://registry.yarnpkg.com/ajv/-/ajv-8.0.5.tgz#f07d6fdeffcdbb80485570ce3f1bc845fcc812b9"
+  integrity sha512-RkiLa/AeJx7+9OvniQ/qeWu0w74A8DiPPBclQ6ji3ZQkv5KamO+QGpqmi7O4JIw3rHGUXZ6CoP9tsAkn3gyazg==
   dependencies:
     fast-deep-equal "^3.1.1"
     json-schema-traverse "^1.0.0"
