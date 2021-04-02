@@ -370,17 +370,3 @@ export async function getMediaInfoForSong(
     return data;
   }
 }
-
-// TODO: Migrate this to the new AudioDatabase by just using a delete
-// and then an add. It should be much more straight forward, at least mentally.
-export async function UpdateSongMetadata(
-  audioDatabase: AudioDatabase,
-  fullPath: string,
-  newMetadata: Partial<FullMetadata>,
-): Promise<void> {
-  // Update this to delete the old song and add the new one...
-  log('NYI');
-  return new Promise(() => {
-    log("no, really: This isn't impemented yet");
-  });
-}

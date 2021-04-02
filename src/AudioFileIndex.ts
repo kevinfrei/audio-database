@@ -1,5 +1,4 @@
-import { MakeError, MakeLogger, Type } from '@freik/core-utils';
-import { ToU8 } from '@freik/core-utils/lib/translation';
+import { MakeError, MakeLogger, ToU8, Type } from '@freik/core-utils';
 import { promises as fsp } from 'fs';
 import { SongKey, FullMetadata, SimpleMetadata } from '@freik/media-core';
 import { MakePersistence, MakeStringWatcher, Persist } from '@freik/node-utils';
