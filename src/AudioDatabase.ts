@@ -19,17 +19,17 @@ import {
   Artist,
   ArtistKey,
   FullMetadata,
-  SimpleMetadata,
   SongKey,
 } from '@freik/media-core';
 import { SongWithPath, VAType } from '.';
-import { AudioFileIndex, MakeAudioFileIndex } from './AudioFileIndex';
-import { GetMetadataStore, IsFullMetadata } from './DbMetadata';
+import {
+  AudioFileIndex,
+  getIndexForPath,
+  MakeAudioFileIndex,
+} from './AudioFileIndex';
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
-import { Metadata } from '@freik/media-utils';
 import { MakePersistence, Persist } from '@freik/node-utils';
-import { promises as fsp } from 'fs';
 import path from 'path';
 
 // eslint-disable-next-line
@@ -44,25 +44,30 @@ export type FlatAudioDatabase = {
 
 export type AudioDatabase = {
   // General stuff
-  addAudioFileIndex: (idx: AudioFileIndex) => Promise<void>;
-  getPicture: (key: AlbumKey) => string;
-  setPicture: (key: AlbumKey, filepath: string) => void;
-  addSongFromPath: (filepath: string) => void; // Some Testing
-  addOrUpdateSong: (md: FullMetadata) => void;
-  delSongByPath: (filepath: string) => boolean; // Some Testing
-  delSongByKey: (key: SongKey) => boolean; // Some Testing
+  addAudioFileIndex(idx: AudioFileIndex): void;
+  getPicture(key: AlbumKey): string;
+  setPicture(key: AlbumKey, filepath: string): void;
+  addSongFromPath(filepath: string): void; // Some Testing
+  addOrUpdateSong(md: FullMetadata): void;
+  delSongByPath(filepath: string): boolean; // Some Testing
+  delSongByKey(key: SongKey): boolean; // Some Testing
   // For all the 'parsed' data
-  getFlatDatabase: () => FlatAudioDatabase; // Some Testing
+  getFlatDatabase(): FlatAudioDatabase; // Some Testing
   // Loading/saving
-  load: (filename: string) => Promise<boolean>; // Some Testing
-  save: (filename: string) => Promise<void>; // Some Testing
+  load(filename: string): Promise<boolean>; // Some Testing
+  save(filename: string): Promise<void>; // Some Testing
   // Updating
-  refresh: () => Promise<boolean>;
+  refresh(): Promise<boolean>;
+  updateMetadata(
+    fullPath: string,
+    newMetadata: Partial<FullMetadata>,
+  ): Promise<boolean>;
+
   // API
-  getSong: (key: SongKey) => SongWithPath | void;
-  getAlbum: (key: AlbumKey) => Album | void;
-  getArtist: (key: ArtistKey) => Artist | void;
-  searchIndex: (substring: boolean, term: string) => SearchResults;
+  getSong(key: SongKey): SongWithPath | void;
+  getAlbum(key: AlbumKey): Album | void;
+  getArtist(key: ArtistKey): Artist | void;
+  searchIndex(substring: boolean, term: string): SearchResults;
 };
 
 function normalizeName(n: string): string {
@@ -83,6 +88,9 @@ type PrivateAudioData = {
 export async function MakeAudioDatabase(
   localStorageLocation: string | Persist,
 ): Promise<AudioDatabase> {
+  const persist = Type.isString(localStorageLocation)
+    ? MakePersistence(localStorageLocation)
+    : localStorageLocation;
   /*
    * Private member data
    */
@@ -99,32 +107,16 @@ export async function MakeAudioDatabase(
 
   const newAlbumKey = SeqNum('L');
   const newArtistKey = SeqNum('R');
-  const persist = Type.isString(localStorageLocation)
-    ? MakePersistence(localStorageLocation)
-    : localStorageLocation;
-  // TODO: Migrate this into the AFI
-  const metadataCache = await GetMetadataStore(persist, 'metadataCache');
-  const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
   let existingKeys: Map<string, SongKey> | null = null;
 
-  // Note: This is an IIFE!
-  const newSongKey = (() => {
-    const highestSongKey = persist.getItem('highestSongKey');
-    return highestSongKey ? SeqNum('S', highestSongKey) : SeqNum('S');
-  })();
-
-  function getSongKey(songPath: string) {
-    if (existingKeys) {
-      const cur = existingKeys.get(songPath);
-      if (cur) return cur;
+  function getSongKey(songPath: string): string {
+    const index = getIndexForPath(songPath);
+    if (!index) {
+      throw new Error(`Can't find an index for the path ${songPath}`);
     }
-    const newKey = newSongKey();
-    existingKeys?.set(songPath, newKey);
-    return newKey;
+    return index.getSongKey(songPath);
   }
 
-  // If the key in this cache is an empty string, the song wasn't added
-  const fileNamesSeen = new Map<string, SongKey>();
   const singleWaiter = MakeSingleWaiter(100);
   /*
    * Member functions
@@ -341,8 +333,6 @@ export async function MakeAudioDatabase(
       }
     });
     data.dbSongs.set(theSong.key, theSong);
-    // Set this thing as appropriately "observed"
-    fileNamesSeen.set(theSong.path, theSong.key);
   }
 
   function delSongByKey(key: SongKey): boolean {
@@ -421,171 +411,42 @@ export async function MakeAudioDatabase(
         err(`Can't find the album for the song ${theSong.title}`);
       }
     }
-    fileNamesSeen.delete(theSong.path);
     return true;
   }
 
   function delSongByPath(filepath: string): boolean {
-    // First, remove it froom the fileNamesSeen set
-    const key = fileNamesSeen.get(filepath);
-    if (!Type.isString(key)) {
+    const idx = getIndexForPath(filepath);
+    if (!idx) {
       return false;
     }
-    // If we have an 'empty' key, then the song doesn't exist in the DB, but
-    // we saw it, so let's remove it from that set and be done
-    if (key === '') {
-      fileNamesSeen.delete(filepath);
-      return true;
-    }
-
+    const key = idx.getSongKey(filepath);
     // Now, let's see if we can find this song
-    if (data.dbSongs.has(key)) {
-      return delSongByKey(key);
-    }
-    return false;
+    return data.dbSongs.has(key) ? delSongByKey(key) : false;
   }
 
   // Returns true if we should look inside the file for metadata
-  function addSongFromPath(file: string): boolean {
-    // This handles the situation of adding /foo and the /foo/bar
-    // as file locations
-    if (fileNamesSeen.has(file)) {
+  async function addSongFromPath(filePath: string): Promise<boolean> {
+    // First, figure out if this is from an index or not
+    const afi = getIndexForPath(filePath);
+    if (!afi) {
       return false;
     }
-    // Flag the file as having been seen
-    fileNamesSeen.set(file, '');
-
-    // If we've previously failed doing anything with this file, don't keep
-    // banging our head against a wall
-    if (!metadataCache.shouldTry(file)) {
+    const md = await afi.getMetadataForSong(filePath);
+    if (!md) {
       return false;
     }
-    // Cached data overrides file path acquired metadata
-    const mdOverride = metadataOverride.get(file);
-    const littlemd: SimpleMetadata | void = Metadata.FromPath(file);
-    if (!littlemd) {
-      log('Unable to get metadata from file ' + file);
-      return true;
-    }
-    const fullMd = Metadata.FullFromObj(file, littlemd as any);
-    const md = { ...fullMd, ...mdOverride };
-
-    if (!IsFullMetadata(md)) {
-      log('Unable to get full metadata from file ' + file);
-      return true;
-    }
-
     // We *could* save this data to disk, but honestly,
     // I don't think it's going to be measurably faster,
     // and I'd rather not waste the space
     addOrUpdateSong(md);
-    return false;
+    return true;
   }
 
-  // TODO: Delegate this to the index
-  async function handleAlbumCovers(idx: AudioFileIndex) {
-    // Get all pictures from each directory.
-    // Find the biggest and make it the album picture for any albums in that dir
-    const dirsToPics = new Map<string, Set<string>>();
-    idx.forEachImageFile((p) => {
-      const dirName = path.dirname(p);
-      const val = dirsToPics.get(dirName);
-      if (val) {
-        val.add(p);
-      } else {
-        dirsToPics.set(dirName, new Set([p]));
-      }
-    });
-    const dirsToAlbums = new Map<string, Set<Album>>();
-    for (const a of data.dbAlbums.values()) {
-      for (const s of a.songs) {
-        const theSong = data.dbSongs.get(s);
-        if (!theSong) {
-          continue;
-        }
-        const thePath = theSong.path;
-        const dirName = path.dirname(thePath);
-        // We only need to track directories if we found folders in them...
-        if (!dirsToPics.has(dirName)) {
-          continue;
-        }
-        const val = dirsToAlbums.get(dirName);
-        if (val) {
-          val.add(a);
-        } else {
-          dirsToAlbums.set(dirName, new Set([a]));
-        }
-      }
-    }
-    // Now, for each dir, find the biggest file and dump it in the database
-    // for each album that has stuff in that directory
-    type SizeAndName = { size: number; name: string };
-    for (const [dirName, setOfFiles] of dirsToPics) {
-      const albums = dirsToAlbums.get(dirName);
-      if (!albums || !albums.size) {
-        continue;
-      }
-      let largest: SizeAndName = { size: 0, name: '' };
-      for (const cur of setOfFiles.values()) {
-        const fileStat = await fsp.stat(cur);
-        if (fileStat.size > largest.size) {
-          largest = { size: fileStat.size, name: cur };
-        }
-      }
-      for (const album of albums) {
-        data.dbPictures.set(album.key, largest.name);
-      }
-    }
-    // Metadata-hosted album covers are only acquired "on demand"
-  }
-
-  async function addAudioFileIndex(idx: AudioFileIndex): Promise<void> {
+  function addAudioFileIndex(idx: AudioFileIndex) {
     // Keep this thing around for future updating when the metadata
     // caching is moved into the file index
     // TODO: Migrate metadata caching/overrides to the AFI
     data.dbAudioIndices.push(idx);
-    const tryHarder: string[] = [];
-    idx.forEachAudioFile((pathName: string) => {
-      if (addSongFromPath(pathName)) {
-        tryHarder.push(pathName);
-      }
-    });
-    for (const file of tryHarder) {
-      let maybeMetadata = null;
-      try {
-        maybeMetadata = await Metadata.FromFileAsync(file);
-      } catch (e) {
-        err(`Failed acquiring metadata from ${file}:`);
-        err(e);
-      }
-      if (!maybeMetadata) {
-        log(`Complete metadata failure for ${file}`);
-        metadataCache.fail(file);
-        continue;
-      }
-      const fullMd = Metadata.FullFromObj(file, maybeMetadata as any);
-      if (!fullMd) {
-        log(`Partial metadata failure for ${file}`);
-        metadataCache.fail(file);
-        continue;
-      }
-      const mdOverride = metadataOverride.get(file);
-      const md = { ...fullMd, ...mdOverride };
-      metadataCache.set(file, md);
-      addOrUpdateSong(md);
-    }
-
-    await handleAlbumCovers(idx);
-
-    // Save
-    await metadataCache.save();
-    await persist.setItemAsync(
-      'songHashIndex',
-      FTON.stringify(
-        new Map([...data.dbSongs.values()].map((val) => [val.path, val.key])),
-      ),
-    );
-    // await persist.setItemAsync('highestSongKey', newSongKey().substr(1));
   }
 
   function rebuildIndex() {
@@ -733,12 +594,13 @@ export async function MakeAudioDatabase(
   async function updateMetadata(
     fullPath: string,
     newMetadata: Partial<FullMetadata>,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // Update this to delete the old song and add the new one...
-    log('NYI');
-    return new Promise(() => {
-      log("no, really: This isn't impemented yet");
-    });
+    const indexForPath = getIndexForPath(fullPath);
+    if (!indexForPath) {
+      return false;
+    }
+    return await indexForPath.updateMetadata(fullPath, newMetadata);
   }
   /*
    *
@@ -774,5 +636,6 @@ export async function MakeAudioDatabase(
     save,
     refresh,
     searchIndex,
+    updateMetadata,
   };
 }

@@ -1,18 +1,50 @@
 import { MakeError, MakeLogger, Type } from '@freik/core-utils';
-import { SongKey } from '@freik/media-core';
-import { ForFiles, MakeStringWatcher, StringWatcher } from '@freik/node-utils';
+import { ToU8 } from '@freik/core-utils/lib/translation';
+import { promises as fsp } from 'fs';
+import { SongKey, FullMetadata, SimpleMetadata } from '@freik/media-core';
+import { MakePersistence, MakeStringWatcher, Persist } from '@freik/node-utils';
 import {
   MakeFileIndex,
   pathCompare,
-  SortedArrayDiff,
+  Watcher,
 } from '@freik/node-utils/lib/FileIndex';
-import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
+import { GetMetadataStore, IsFullMetadata } from './DbMetadata';
+import { hideFile } from '@freik/node-utils/lib/file';
+import { Metadata } from '@freik/media-utils';
 
 // eslint-disable-next-line
 const log = MakeLogger('AudioFileIndex', true);
 const err = MakeError('AudioFileIndex-err');
+
+type PathHandler = (pathName: string) => void | Promise<void>;
+
+export type AudioFileIndex = {
+  getHash(): number;
+  getLocation(): string;
+  indexForKey(key: SongKey): AudioFileIndex | undefined;
+  getSongKey(songPath: string): SongKey;
+  /*
+  songKeyForPath(pathName: string): SongKey | void;
+  pathForSongKey(key: SongKey): string | void;
+  */
+  forEachImageFile(fn: PathHandler): void;
+  forEachAudioFile(fn: PathHandler): void;
+  getLastScanTime(): Date | null;
+  // When we rescan files, look at file path diffs
+  rescanFiles(
+    addAudioFile?: PathHandler,
+    delAudioFile?: PathHandler,
+    addImageFile?: PathHandler,
+    delImageFile?: PathHandler,
+  ): Promise<void>;
+  updateMetadata(
+    keyOrPath: SongKey | string,
+    newMetadata: Partial<FullMetadata>,
+  ): Promise<boolean>;
+  getMetadataForSong(filePath: string): Promise<FullMetadata | void>;
+};
 
 const audioTypes = MakeStringWatcher().addToWatchList(
   '.flac',
@@ -22,38 +54,18 @@ const audioTypes = MakeStringWatcher().addToWatchList(
 );
 const imageTypes = MakeStringWatcher().addToWatchList('.png', '.jpg', '.jpeg');
 function watchTypes(pathName: string) {
-  if (path.basename(pathName).startsWith('.')) {
-    return imageTypes(pathName);
+  const lcase = pathName.toLocaleLowerCase();
+  if (path.basename(lcase).startsWith('.')) {
+    return imageTypes(lcase);
   }
-  return audioTypes(pathName) || imageTypes(pathName);
+  return audioTypes(lcase) || imageTypes(lcase);
 }
 
-function isOfType(
-  filename: string,
-  types: Set<string>,
-  hidden?: boolean,
-): boolean {
+function isOfType(filename: string, types: Watcher, hidden?: boolean): boolean {
   return (
     (hidden || !path.basename(filename).startsWith('.')) &&
-    types.has(path.extname(filename).toLowerCase())
+    types(path.extname(filename).toLowerCase())
   );
-}
-
-function getSharedPrefix(paths: string[]): string {
-  let curPrefix: string | null = null;
-  for (const filePath of paths) {
-    if (curPrefix === null) {
-      curPrefix = filePath;
-    } else {
-      while (!filePath.startsWith(curPrefix)) {
-        curPrefix = curPrefix.substr(0, curPrefix.length - 1);
-      }
-      if (curPrefix.length === 0) {
-        return '';
-      }
-    }
-  }
-  return curPrefix || '';
 }
 
 // An "audio data fragment" is a list of files and metadata info.
@@ -66,38 +78,58 @@ function getSharedPrefix(paths: string[]): string {
 // For cache's, song-specific preferences, and metadata overrides,
 // they should be routed to the appropriate MDF to update.
 
-type PathHandler = (pathName: string) => void;
-
-export type AudioFileIndex = {
-  indexForKey(key: SongKey): AudioFileIndex;
-  getHash(): number;
-  getLocation(): string;
-  songKeyForPath(pathName: string): SongKey | void;
-  pathForSongKey(key: SongKey): string | void;
-  forEachImageFile(fn: PathHandler): void;
-  forEachAudioFile(fn: PathHandler): void;
-  getLastScanTime(): Date | null;
-  // When we rescan files, look at file path diffs
-  rescanFiles(
-    addAudioFile?: PathHandler,
-    delAudioFile?: PathHandler,
-    addImageFile?: PathHandler,
-    delImageFile?: PathHandler,
-  ): Promise<void>;
-};
-
-const indexLookup = new Map<string, AudioFileIndex>();
+// "Static" data for looking up stuff across multiple indices
+const indexKeyLookup = new Map<string, AudioFileIndex>();
+type IndexLocation = { location: string; index: AudioFileIndex };
+const lengthSortedPaths: IndexLocation[] = [];
 
 // Given a song key, this finds the file index that contains
 // SongKey's are formatted like this: S{hash-b16384}:{key-b64}
 export function getIndexForKey(key: SongKey): AudioFileIndex | undefined {
   const indexPortion = key.substring(1, key.indexOf(':'));
-  return indexLookup.get(indexPortion);
+  return indexKeyLookup.get(indexPortion);
+}
+
+export function getIndexForPath(pathName: string): AudioFileIndex | undefined {
+  for (const { location, index } of lengthSortedPaths) {
+    if (pathCompare(pathName.substring(0, location.length), location) === 0) {
+      return index;
+    }
+  }
+}
+
+// Adds an index with the given hash value and location
+// It returns the encoded hash value for the location
+function addIndex(
+  hashValue: number,
+  location: string,
+  index: AudioFileIndex,
+): string {
+  let u8 = ToU8(hashValue);
+  while (indexKeyLookup.has(u8)) {
+    const idx = indexKeyLookup.get(u8);
+    if (idx === index) {
+      return u8;
+    }
+    // There's a hash conflict :/
+    hashValue = h32(hashValue).update(location).digest().toNumber();
+    u8 = ToU8(hashValue);
+  }
+  indexKeyLookup.set(u8, index);
+  let i = 0;
+  for (; i < lengthSortedPaths.length; i++) {
+    if (lengthSortedPaths[i].location.length >= i) {
+      break;
+    }
+  }
+  lengthSortedPaths.splice(i, 0, { location, index });
+  return u8;
 }
 
 export async function MakeAudioFileIndex(
-  location: string,
+  locationName: string,
   fragmentHash: number,
+  /*  writableLocation: string,*/
 ): Promise<AudioFileIndex> {
   /*
    * "member" data goes here
@@ -106,31 +138,210 @@ export async function MakeAudioFileIndex(
   let songList: string[] = [];
   let picList: string[] = [];
   let lastScanTime: Date | null = null;
-  const prefix = location + (location[location.length] === '/' ? '' : '/');
-  const hashEnc = Uencode(fragmentHash);
+
+  const location =
+    locationName + (locationName[locationName.length] === '/' ? '' : '/');
+
+  // "this"
+  const res: AudioFileIndex = {
+    // Don't know if this is necessary
+    getHash: () => fragmentHash,
+    getLocation: () => location,
+    getLastScanTime: () => lastScanTime,
+    indexForKey: getIndexForKey,
+    getSongKey,
+    forEachImageFile: (fn: PathHandler) => picList.forEach(fn),
+    forEachAudioFile: (fn: PathHandler) => songList.forEach(fn),
+    rescanFiles,
+    updateMetadata,
+    getMetadataForSong,
+  };
+
+  function getShortPath(songPath: string): string {
+    if (path.isAbsolute(songPath)) {
+      if (!songPath.startsWith(location)) {
+        throw Error(`Invalid prefix ${location} for songPath ${songPath}`);
+      }
+      return songPath.substr(location.length);
+    }
+    return songPath;
+  }
+
+  async function getOrCreateStorage(): Promise<Persist> {
+    const pathName = path.join(location, '.emp');
+    try {
+      const str = await fsp.mkdir(pathName, { recursive: true });
+      if (Type.isString(str)) {
+        // If we created the folder, we also want to hide it, cuz turd files
+        // are truly annoying
+        await hideFile(pathName);
+      } else {
+        // TODO: Handle read-only file systems in here?
+      }
+    } catch (e) {
+      // TODO: Handle read-only file systems in here?
+    }
+    return MakePersistence(pathName);
+  }
+
+  const indexHashString = addIndex(fragmentHash, location, res);
   // TODO: Provide a file index location override, yes?
-  const fileIndex = MakeFileIndex(location, watchTypes);
+  const persist: Persist = await getOrCreateStorage();
+  const fileIndex = MakeFileIndex(location, watchTypes, persist.getLocation());
 
   // A hash table of h32's to path-names
   const existingSongKeys = new Map<number, string>();
 
-  function getSongKey(songPath: string) {
-    if (songPath.startsWith(prefix)) {
-      const shortPath = songPath.substr(prefix.length);
-      let hash = h32(shortPath, fragmentHash).toNumber();
-      while (existingSongKeys.has(hash)) {
-        const val = existingSongKeys.get(hash);
-        if (Type.isString(val) && pathCompare(val, shortPath) === 0) {
-          break;
-        }
-        err(`songKey hash collision: "${songPath}"`);
-        // Feed the old hash into the new hash to get a new value, cuz y not?
-        hash = h32(songPath, hash).toNumber();
+  // This *should* be pretty stable, with the rare exceptions of hash collisions
+  function getSongKey(songPath: string): SongKey {
+    const shortPath = getShortPath(songPath);
+    let hash = h32(shortPath, fragmentHash).toNumber();
+    while (existingSongKeys.has(hash)) {
+      const val = existingSongKeys.get(hash);
+      if (Type.isString(val) && pathCompare(val, shortPath) === 0) {
+        break;
       }
-      existingSongKeys.set(hash, shortPath);
-      return `S${hashEnc}:${Uencode(hash)}`;
+      err(`songKey hash collision: "${songPath}"`);
+      // Feed the old hash into the new hash to get a new value, cuz y not?
+      hash = h32(songPath, hash).toNumber();
     }
-    throw Error(`Invalid prefix ${prefix} for songPath ${songPath}`);
+    existingSongKeys.set(hash, shortPath);
+    return `S${indexHashString}:${ToU8(hash)}`;
+  }
+
+  const metadataCache = await GetMetadataStore(persist, 'metadataCache');
+  const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
+
+  async function rescanFiles(
+    addAudioFile?: PathHandler,
+    delAudioFile?: PathHandler,
+    addImageFile?: PathHandler,
+    delImageFile?: PathHandler,
+  ) {
+    // TODO: Make this work
+    return new Promise<void>(() => {
+      /* */
+    });
+  }
+
+  async function updateMetadata(
+    keyOrPath: SongKey | string,
+    newMetadata: Partial<FullMetadata>,
+  ): Promise<boolean> {
+    // TODO: Fill this in
+    return new Promise<boolean>(() => {
+      /* */
+    });
+  }
+
+  async function getMetadataForSong(
+    pathName: string,
+  ): Promise<FullMetadata | void> {
+    const fileName = getShortPath(pathName);
+
+    // If we've previously failed doing anything with this file, don't keep
+    // banging our head against a wall
+    if (!metadataCache.shouldTry(fileName)) {
+      return;
+    }
+    // Cached data overrides file path acquired metadata
+    const mdOverride = metadataOverride.get(fileName);
+    const littlemd: SimpleMetadata | void = Metadata.FromPath(fileName);
+    if (littlemd) {
+      const pathMd = Metadata.FullFromObj(fileName, littlemd as any);
+      const md = { ...pathMd, ...mdOverride };
+
+      if (IsFullMetadata(md)) {
+        return md;
+      }
+    }
+    // This does some stuff about trying harder for files that don't parse right
+    let maybeMetadata = null;
+    try {
+      maybeMetadata = await Metadata.FromFileAsync(fileName);
+    } catch (e) {
+      err(`Failed acquiring metadata from ${fileName}:`);
+      err(e);
+    }
+    if (!maybeMetadata) {
+      log(`Complete metadata failure for ${fileName}`);
+      metadataCache.fail(fileName);
+      return;
+    }
+    const fullMd = Metadata.FullFromObj(fileName, maybeMetadata as any);
+    if (!fullMd) {
+      log(`Partial metadata failure for ${fileName}`);
+      metadataCache.fail(fileName);
+      return;
+    }
+    const overridden = { ...fullMd, ...mdOverride };
+    metadataCache.set(fileName, overridden);
+    // Don't need to wait on this one:
+    void metadataCache.save();
+    return overridden;
+    /*
+    await handleAlbumCovers(idx);
+    */
+  }
+
+  // TODO: Delegate this to the index
+  /* async */ function handleAlbumCovers(idx: AudioFileIndex) {
+    // Get all pictures from each directory.
+    // Find the biggest and make it the album picture for any albums in that dir
+    /*
+    const dirsToPics = new Map<string, Set<string>>();
+    idx.forEachImageFile((p) => {
+      const dirName = path.dirname(p);
+      const val = dirsToPics.get(dirName);
+      if (val) {
+        val.add(p);
+      } else {
+        dirsToPics.set(dirName, new Set([p]));
+      }
+    });
+    const dirsToAlbums = new Map<string, Set<Album>>();
+    for (const a of data.dbAlbums.values()) {
+      for (const s of a.songs) {
+        const theSong = data.dbSongs.get(s);
+        if (!theSong) {
+          continue;
+        }
+        const thePath = theSong.path;
+        const dirName = path.dirname(thePath);
+        // We only need to track directories if we found folders in them...
+        if (!dirsToPics.has(dirName)) {
+          continue;
+        }
+        const val = dirsToAlbums.get(dirName);
+        if (val) {
+          val.add(a);
+        } else {
+          dirsToAlbums.set(dirName, new Set([a]));
+        }
+      }
+    }
+    // Now, for each dir, find the biggest file and dump it in the database
+    // for each album that has stuff in that directory
+    type SizeAndName = { size: number; name: string };
+
+    for (const [dirName, setOfFiles] of dirsToPics) {
+      const albums = dirsToAlbums.get(dirName);
+      if (!albums || !albums.size) {
+        continue;
+      }
+      let largest: SizeAndName = { size: 0, name: '' };
+      for (const cur of setOfFiles.values()) {
+        const fileStat = await fsp.stat(cur);
+        if (fileStat.size > largest.size) {
+          largest = { size: fileStat.size, name: cur };
+        }
+      }
+      for (const album of albums) {
+        data.dbPictures.set(album.key, largest.name);
+      }
+    }
+    */
+    // Metadata-hosted album covers are only acquired "on demand"
   }
   /*
    *
@@ -138,13 +349,5 @@ export async function MakeAudioFileIndex(
    *
    */
 
-  return {
-    // Don't know if this is necessary
-    getHash: () => fragmentHash,
-    getLocation: () => location,
-    getLastScanTime: () => lastScanTime,
-    forEachImageFile: (fn: PathHandler) => picList.forEach(fn),
-    forEachAudioFile: (fn: PathHandler) => songList.forEach(fn),
-    rescanFiles,
-  };
+  return res;
 }
