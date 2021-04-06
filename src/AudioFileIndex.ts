@@ -43,6 +43,7 @@ export type AudioFileIndex = {
     newMetadata: Partial<FullMetadata>,
   ): Promise<boolean>;
   getMetadataForSong(filePath: string): Promise<FullMetadata | void>;
+  destroy(): void;
 };
 
 const audioTypes = MakeSuffixWatcher().addToWatchList(
@@ -51,8 +52,14 @@ const audioTypes = MakeSuffixWatcher().addToWatchList(
   'aac',
   'm4a',
 );
+const imageTypes = MakeSuffixWatcher().addToWatchList(
+  'png',
+  'jpg',
+  'jpeg',
+  'heic',
+  'hei',
+);
 
-const imageTypes = MakeSuffixWatcher().addToWatchList('png', 'jpg', 'jpeg');
 function watchTypes(pathName: string) {
   return (
     imageTypes(pathName) ||
@@ -118,6 +125,10 @@ function addIndex(
   return u8;
 }
 
+function delIndex(index: AudioFileIndex) {
+  // TODO: Remove the index
+}
+
 export async function MakeAudioFileIndex(
   locationName: string,
   fragmentHash: number,
@@ -131,8 +142,9 @@ export async function MakeAudioFileIndex(
   let picList: string[] = [];
   let lastScanTime: Date | null = null;
 
-  const location =
-    locationName + (locationName[locationName.length] === '/' ? '' : '/');
+  const location = path.resolve(
+    locationName + (locationName[locationName.length] === '/' ? '' : '/'),
+  );
 
   // "this"
   const res: AudioFileIndex = {
@@ -148,6 +160,7 @@ export async function MakeAudioFileIndex(
     rescanFiles,
     updateMetadata,
     getMetadataForSong,
+    destroy: () => delIndex(res),
   };
 
   async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
@@ -169,13 +182,11 @@ export async function MakeAudioFileIndex(
   }
 
   function getShortPath(songPath: string): string {
-    if (path.isAbsolute(songPath)) {
-      if (!songPath.startsWith(location)) {
-        throw Error(`Invalid prefix ${location} for songPath ${songPath}`);
-      }
-      return songPath.substr(location.length);
+    const absPath = path.resolve(songPath);
+    if (!absPath.startsWith(location)) {
+      throw Error(`Invalid prefix ${location} for songPath ${absPath}`);
     }
-    return songPath;
+    return absPath.substr(location.length);
   }
 
   async function getOrCreateStorage(): Promise<Persist> {
