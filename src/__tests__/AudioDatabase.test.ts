@@ -29,15 +29,14 @@ function swap<T>(items: T[]) {
   items[1] = a;
 }
 
-it('Make an empty Audio Database', async () => {
+it('Make a flat Audio Database', async () => {
   const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
   const flat = db.getFlatDatabase();
   expect(flat).toEqual({ albums: [], artists: [], songs: [] });
 });
 
-/*
-it('Add individual file to the db', async () => {
+/* it('Add individual file to the db', async () => {
   const db = await MakeAudioDatabase(persist);
   db.addSongFromPath(songPath);
   const flat = db.getFlatDatabase();
@@ -89,4 +88,5 @@ it('Save/Load consistency', async () => {
   const loadedFlat = db.getFlatDatabase();
   expect(loadedFlat).toEqual(flatDBwithBoth);
 });
+
 */

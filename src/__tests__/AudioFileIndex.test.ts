@@ -24,11 +24,8 @@ it('Create the index', async () => {
   );
   expect(afi).toBeDefined();
   let count = 0;
-  await afi.rescanFiles((pn) => console.log(pn));
-  await afi.forEachAudioFile((pn) => {
-    return new Promise(() => {
-      count++;
-    });
+  afi.forEachAudioFileSync((pn) => {
+    count++;
   });
 
   expect(count).toEqual(6);

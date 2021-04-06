@@ -1,7 +1,7 @@
 import { MakeError, MakeLogger, ToU8, Type } from '@freik/core-utils';
 import { FullMetadata, SimpleMetadata, SongKey } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
-import { MakePersistence, MakeStringWatcher, Persist } from '@freik/node-utils';
+import { MakePersistence, MakeSuffixWatcher, Persist } from '@freik/node-utils';
 import { hideFile } from '@freik/node-utils/lib/file';
 import { MakeFileIndex, pathCompare } from '@freik/node-utils/lib/FileIndex';
 import { promises as fsp } from 'fs';
@@ -15,7 +15,8 @@ const err = MakeError('AudioFileIndex-err');
 
 type PathHandlerAsync = (pathName: string) => Promise<void>;
 type PathHandlerSync = (pathName: string) => void;
-type PathHandlerEither = PathHandlerSync | PathHandlerAsync;
+type PathHandlerBoth = (pathName: string) => Promise<void> | void;
+type PathHandlerEither = PathHandlerSync | PathHandlerAsync | PathHandlerBoth;
 
 export type AudioFileIndex = {
   getHash(): number;
@@ -25,8 +26,8 @@ export type AudioFileIndex = {
   songKeyForPath(pathName: string): SongKey | void;
   pathForSongKey(key: SongKey): string | void;
   */
-  forEachImageFile(fn: PathHandlerAsync): Promise<void>;
-  forEachAudioFile(fn: PathHandlerAsync): Promise<void>;
+  forEachImageFile(fn: PathHandlerEither): Promise<void>;
+  forEachAudioFile(fn: PathHandlerEither): Promise<void>;
   forEachImageFileSync(fn: PathHandlerSync): void;
   forEachAudioFileSync(fn: PathHandlerSync): void;
   getLastScanTime(): Date | null;
@@ -44,19 +45,19 @@ export type AudioFileIndex = {
   getMetadataForSong(filePath: string): Promise<FullMetadata | void>;
 };
 
-const audioTypes = MakeStringWatcher().addToWatchList(
-  '.flac',
-  '.mp3',
-  '.aac',
-  '.m4a',
+const audioTypes = MakeSuffixWatcher().addToWatchList(
+  'flac',
+  'mp3',
+  'aac',
+  'm4a',
 );
-const imageTypes = MakeStringWatcher().addToWatchList('.png', '.jpg', '.jpeg');
+
+const imageTypes = MakeSuffixWatcher().addToWatchList('png', 'jpg', 'jpeg');
 function watchTypes(pathName: string) {
-  const lcase = pathName.toLocaleLowerCase();
-  if (path.basename(lcase).startsWith('.')) {
-    return imageTypes(lcase);
-  }
-  return audioTypes(lcase) || imageTypes(lcase);
+  return (
+    imageTypes(pathName) ||
+    (audioTypes(pathName) && !path.basename(pathName).startsWith('.'))
+  );
 }
 
 // An "audio data fragment" is a list of files and metadata info.
@@ -149,15 +150,21 @@ export async function MakeAudioFileIndex(
     getMetadataForSong,
   };
 
-  async function forEachImageFile(fn: PathHandlerAsync): Promise<void> {
+  async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
     for (const pic of picList) {
-      await fn(pic);
+      const foo = fn(pic);
+      if (Type.isPromise(foo)) {
+        await foo;
+      }
     }
   }
 
-  async function forEachAudioFile(fn: PathHandlerAsync): Promise<void> {
+  async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
     for (const song of songList) {
-      await fn(song);
+      const foo = fn(song);
+      if (Type.isPromise(foo)) {
+        await foo;
+      }
     }
   }
 
@@ -196,6 +203,14 @@ export async function MakeAudioFileIndex(
     watchTypes,
     persist.getLocation(),
   );
+  fileIndex.forEachFileSync((pathName: string) => {
+    if (audioTypes(pathName)) {
+      songList.push(pathName);
+    } else {
+      // assert(imageTypes(pathName));
+      picList.push(pathName);
+    }
+  });
 
   // A hash table of h32's to path-names
   const existingSongKeys = new Map<number, string>();
