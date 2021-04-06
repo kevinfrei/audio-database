@@ -18,6 +18,18 @@ type AudioFileIndex = {
 import { MakeAudioFileIndex } from '../AudioFileIndex';
 
 it('Create the index', async () => {
-  const afi = await MakeAudioFileIndex('./src/__tests__/fileIndex', 0x1badcafe);
+  const afi = await MakeAudioFileIndex(
+    'src/__tests__/audiofileindex',
+    0x1badcafe,
+  );
   expect(afi).toBeDefined();
+  let count = 0;
+  await afi.rescanFiles((pn) => console.log(pn));
+  await afi.forEachAudioFile((pn) => {
+    return new Promise(() => {
+      count++;
+    });
+  });
+
+  expect(count).toEqual(6);
 });

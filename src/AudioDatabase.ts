@@ -336,7 +336,6 @@ export async function MakeAudioDatabase(
   }
 
   function delSongByKey(key: SongKey): boolean {
-    // TODO: Make this work
     // First, remove the song itself, then remove the reference to the artist
     // and album. If the artist & album are now "empty" remove them as well
 
@@ -429,6 +428,7 @@ export async function MakeAudioDatabase(
     // First, figure out if this is from an index or not
     const afi = GetIndexForPath(filePath);
     if (!afi) {
+      // TODO: Make a "everything else" index.
       return false;
     }
     const md = await afi.getMetadataForSong(filePath);
@@ -437,7 +437,8 @@ export async function MakeAudioDatabase(
     }
     // We *could* save this data to disk, but honestly,
     // I don't think it's going to be measurably faster,
-    // and I'd rather not waste the space
+    // and I'd rather not waste the space or deal with data in multiple
+    // places are now out of sync issues
     addOrUpdateSong(md);
     return true;
   }
