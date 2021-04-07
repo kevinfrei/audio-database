@@ -312,7 +312,7 @@ export async function MakeAudioFileIndex(
   async function getMetadataForSong(
     pathName: string,
   ): Promise<FullMetadata | void> {
-    const fileName = getShortPath(pathName);
+    const fileName = path.resolve(pathName);
 
     // If we've previously failed doing anything with this file, don't keep
     // banging our head against a wall
