@@ -140,9 +140,8 @@ export async function MakeAudioFileIndex(
   /*
    * "member" data goes here
    */
-  const _location = path.resolve(
-    locationName + (locationName[locationName.length] === '/' ? '' : '/'),
-  );
+  const _location =
+    path.resolve(locationName) + (locationName.endsWith('/') ? '' : '/');
   // IIFE
   const _persist = await (async () => {
     const pathName = path.join(_location, '.emp');
@@ -311,20 +310,10 @@ export async function MakeAudioFileIndex(
     data.lastScanTime = new Date();
   }
 
-  async function updateMetadata(
-    keyOrPath: SongKey | string,
-    newMetadata: Partial<FullMetadata>,
-  ): Promise<boolean> {
-    // TODO: Fill this in
-    return new Promise<boolean>(() => {
-      /* */
-    });
-  }
-
   async function getMetadataForSong(
     pathName: string,
   ): Promise<FullMetadata | void> {
-    const fileName = path.resolve(pathName);
+    const fileName = getShortPath(pathName);
 
     // If we've previously failed doing anything with this file, don't keep
     // banging our head against a wall
@@ -335,7 +324,10 @@ export async function MakeAudioFileIndex(
     const mdOverride = data.metadataOverride.get(fileName);
     const littlemd: SimpleMetadata | void = Metadata.FromPath(fileName);
     if (littlemd) {
-      const pathMd = Metadata.FullFromObj(fileName, littlemd as any);
+      const pathMd = Metadata.FullFromObj(
+        path.resolve(path.join(data.location, fileName)),
+        littlemd as any,
+      );
       const md = { ...pathMd, ...mdOverride };
 
       if (IsFullMetadata(md)) {
@@ -369,6 +361,44 @@ export async function MakeAudioFileIndex(
     /*
     await handleAlbumCovers(idx);
     */
+  }
+
+  async function updateMetadata(
+    keyOrPath: SongKey | string,
+    newMetadata: Partial<FullMetadata>,
+  ): Promise<boolean> {
+    const hasArtist = Type.has(newMetadata, 'artist'); // string | string[]
+    const hasAlbum = Type.hasStr(newMetadata, 'album');
+    const hasTrack = Type.has(newMetadata, 'track'); // number
+    const hasTitle = Type.hasStr(newMetadata, 'title');
+    const hasVA = Type.hasStr(newMetadata, 'vaType'); // 'va' | 'ost'
+    const hasMoreArtists = Type.has(newMetadata, 'moreArtists'); // string[]
+    const hasVariations = Type.has(newMetadata, 'variations'); // string[]
+    const hasDisk = Type.has(newMetadata, 'disk'); // number
+    // Let's handle the simple stuff: title, track number, disk number
+    /*    const songKey = makeSongKey(fullPath);
+    const song = db.songs.get(songKey);
+    const tn: number = hasTrack ? newMetadata.track! : song.track % 100;
+    const dn: number = hasDisk ? newMetadata.disk! : song.track / 100;
+    if (song && !hasArtist && !hasAlbum && !hasVA && !hasMoreArtists) {
+      if (hasVariations) {
+        song.variations = newMetadata.variations;
+      }
+      if (hasDisk || hasTrack) {
+        song.track = tn + dn * 100;
+      }
+      if (hasTitle) {
+        song.title = newMetadata.title!;
+      }
+      // Update the search index
+      setMusicIndex(makeIndex(db));
+      sendUpdatedDB(db);
+      return;
+    }*/
+    // TODO: Fill this in
+    return new Promise<boolean>(() => {
+      /* */
+    });
   }
 
   // TODO: Delegate this to the index

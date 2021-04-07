@@ -52,7 +52,7 @@ it('Some basic AudioFileIndex tests', async () => {
   expect(count).toEqual(6);
   expect(afi.getHash()).toEqual(0x1badcafe);
   expect(afi.getLocation()).toEqual(
-    path.resolve('src/__tests__/audiofileindex'),
+    path.resolve('src/__tests__/audiofileindex') + '/',
   );
   const songPathName =
     "Test Artist - 2010 - Test Album/01 - This isn't actually an mp3.mp3";
