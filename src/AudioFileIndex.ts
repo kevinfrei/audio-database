@@ -46,19 +46,8 @@ export type AudioFileIndex = {
   destroy(): void;
 };
 
-const audioTypes = MakeSuffixWatcher().addToWatchList(
-  'flac',
-  'mp3',
-  'aac',
-  'm4a',
-);
-const imageTypes = MakeSuffixWatcher().addToWatchList(
-  'png',
-  'jpg',
-  'jpeg',
-  'heic',
-  'hei',
-);
+const audioTypes = MakeSuffixWatcher('flac', 'mp3', 'aac', 'm4a');
+const imageTypes = MakeSuffixWatcher('png', 'jpg', 'jpeg', 'heic', 'hei');
 
 function watchTypes(pathName: string) {
   return (
