@@ -1,3 +1,4 @@
+import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
 
@@ -28,6 +29,15 @@ export type AudioFileIndex = {
 };
 */
 
+async function cleanup() {
+  try {
+    await fsp.rm('src/__tests__/audiofileindex/.emp/fileIndex.txt');
+  } catch (e) {}
+}
+
+beforeAll(cleanup);
+afterAll(cleanup);
+
 it('Some basic AudioFileIndex tests', async () => {
   const afi = await MakeAudioFileIndex(
     'src/__tests__/audiofileindex',
@@ -47,8 +57,8 @@ it('Some basic AudioFileIndex tests', async () => {
   const songPathName =
     "Test Artist - 2010 - Test Album/01 - This isn't actually an mp3.mp3";
   const fullPath = path.join(afi.getLocation(), songPathName);
-  const theKey = afi.getSongKey(fullPath);
-  expect(theKey).toMatch(/^S....:....$/);
+  const theKey = afi.makeSongKey(fullPath);
+  expect(theKey).toMatch(/^S[^a-z0-9A-Z]+:[^a-z0-9A-Z]+$/);
   const md = await afi.getMetadataForSong(fullPath);
   expect(md).toEqual({
     album: 'Test Album',

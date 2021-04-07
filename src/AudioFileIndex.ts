@@ -21,11 +21,7 @@ type PathHandlerEither = PathHandlerSync | PathHandlerAsync | PathHandlerBoth;
 export type AudioFileIndex = {
   getHash(): number;
   getLocation(): string;
-  getSongKey(songPath: string): SongKey;
-  /*
-  songKeyForPath(pathName: string): SongKey | void;
-  pathForSongKey(key: SongKey): string | void;
-  */
+  makeSongKey(songPath: string): SongKey;
   forEachImageFile(fn: PathHandlerEither): Promise<void>;
   forEachAudioFile(fn: PathHandlerEither): Promise<void>;
   forEachImageFileSync(fn: PathHandlerSync): void;
@@ -141,7 +137,7 @@ export async function MakeAudioFileIndex(
     getHash: () => fragmentHash,
     getLocation: () => location,
     getLastScanTime: () => lastScanTime,
-    getSongKey,
+    makeSongKey,
     forEachImageFile,
     forEachAudioFile,
     forEachImageFileSync: (fn: PathHandlerSync) => picList.forEach(fn),
@@ -201,7 +197,7 @@ export async function MakeAudioFileIndex(
   const fileIndex = await MakeFileIndex(
     location,
     watchTypes,
-    persist.getLocation(),
+    path.join(persist.getLocation(), 'fileIndex.txt'),
   );
   fileIndex.forEachFileSync((pathName: string) => {
     if (audioTypes(pathName)) {
@@ -216,7 +212,7 @@ export async function MakeAudioFileIndex(
   const existingSongKeys = new Map<number, string>();
 
   // This *should* be pretty stable, with the rare exceptions of hash collisions
-  function getSongKey(songPath: string): SongKey {
+  function makeSongKey(songPath: string): SongKey {
     const shortPath = getShortPath(songPath);
     let hash = h32(shortPath, fragmentHash).toNumber();
     while (existingSongKeys.has(hash)) {

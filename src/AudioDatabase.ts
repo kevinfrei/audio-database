@@ -114,7 +114,7 @@ export async function MakeAudioDatabase(
     if (!index) {
       throw new Error(`Can't find an index for the path ${songPath}`);
     }
-    return index.getSongKey(songPath);
+    return index.makeSongKey(songPath);
   }
 
   const singleWaiter = MakeSingleWaiter(100);
@@ -418,7 +418,7 @@ export async function MakeAudioDatabase(
     if (!idx) {
       return false;
     }
-    const key = idx.getSongKey(filepath);
+    const key = idx.makeSongKey(filepath);
     // Now, let's see if we can find this song
     return data.dbSongs.has(key) ? delSongByKey(key) : false;
   }
