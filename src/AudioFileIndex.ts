@@ -1,13 +1,18 @@
+/* eslint-disable no-underscore-dangle */
 import { MakeError, MakeLogger, ToU8, Type } from '@freik/core-utils';
 import { FullMetadata, SimpleMetadata, SongKey } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
 import { MakePersistence, MakeSuffixWatcher, Persist } from '@freik/node-utils';
 import { hideFile } from '@freik/node-utils/lib/file';
-import { MakeFileIndex, pathCompare } from '@freik/node-utils/lib/FileIndex';
+import {
+  FileIndex,
+  MakeFileIndex,
+  pathCompare,
+} from '@freik/node-utils/lib/FileIndex';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
-import { GetMetadataStore, IsFullMetadata } from './DbMetadata';
+import { GetMetadataStore, IsFullMetadata, MetadataStore } from './DbMetadata';
 
 // eslint-disable-next-line
 const log = MakeLogger('AudioFileIndex', true);
@@ -114,6 +119,19 @@ function delIndex(index: AudioFileIndex) {
   // TODO: Remove the index
 }
 
+type PrivateAudioFileIndexData = {
+  songList: string[];
+  picList: string[];
+  lastScanTime: Date | null;
+  location: string;
+  indexHashString: string;
+  persist: Persist;
+  fileIndex: FileIndex;
+  metadataCache: MetadataStore;
+  metadataOverride: MetadataStore;
+  existingSongKeys: Map<number, string>;
+};
+
 export async function MakeAudioFileIndex(
   locationName: string,
   fragmentHash: number,
@@ -122,60 +140,12 @@ export async function MakeAudioFileIndex(
   /*
    * "member" data goes here
    */
-  // non-const: these things update "atomically" so the whole array gets changed
-  let songList: string[] = [];
-  let picList: string[] = [];
-  let lastScanTime: Date | null = null;
-
-  const location = path.resolve(
+  const _location = path.resolve(
     locationName + (locationName[locationName.length] === '/' ? '' : '/'),
   );
-
-  // "this"
-  const res: AudioFileIndex = {
-    // Don't know if this is necessary
-    getHash: () => fragmentHash,
-    getLocation: () => location,
-    getLastScanTime: () => lastScanTime,
-    makeSongKey,
-    forEachImageFile,
-    forEachAudioFile,
-    forEachImageFileSync: (fn: PathHandlerSync) => picList.forEach(fn),
-    forEachAudioFileSync: (fn: PathHandlerSync) => songList.forEach(fn),
-    rescanFiles,
-    updateMetadata,
-    getMetadataForSong,
-    destroy: () => delIndex(res),
-  };
-
-  async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
-    for (const pic of picList) {
-      const foo = fn(pic);
-      if (Type.isPromise(foo)) {
-        await foo;
-      }
-    }
-  }
-
-  async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
-    for (const song of songList) {
-      const foo = fn(song);
-      if (Type.isPromise(foo)) {
-        await foo;
-      }
-    }
-  }
-
-  function getShortPath(songPath: string): string {
-    const absPath = path.resolve(songPath);
-    if (!absPath.startsWith(location)) {
-      throw Error(`Invalid prefix ${location} for songPath ${absPath}`);
-    }
-    return absPath.substr(location.length);
-  }
-
-  async function getOrCreateStorage(): Promise<Persist> {
-    const pathName = path.join(location, '.emp');
+  // IIFE
+  const _persist = await (async () => {
+    const pathName = path.join(_location, '.emp');
     try {
       const str = await fsp.mkdir(pathName, { recursive: true });
       if (Type.isString(str)) {
@@ -189,34 +159,83 @@ export async function MakeAudioFileIndex(
       // TODO: Handle read-only file systems in here?
     }
     return MakePersistence(pathName);
-  }
+  })();
+  const data: PrivateAudioFileIndexData = {
+    songList: [],
+    picList: [],
+    lastScanTime: null,
+    location: _location,
+    indexHashString: '',
+    persist: _persist,
+    fileIndex: await MakeFileIndex(
+      _location,
+      watchTypes,
+      path.join(_persist.getLocation(), 'fileIndex.txt'),
+    ),
+    metadataCache: await GetMetadataStore(_persist, 'metadataCache'),
+    metadataOverride: await GetMetadataStore(_persist, 'metadataOverride'),
+    // A hash table of h32's to path-names
+    existingSongKeys: new Map<number, string>(),
+  };
 
-  const indexHashString = addIndex(fragmentHash, location, res);
-  // TODO: Provide a file index location override, maybe?
-  const persist: Persist = await getOrCreateStorage();
-  const fileIndex = await MakeFileIndex(
-    location,
-    watchTypes,
-    path.join(persist.getLocation(), 'fileIndex.txt'),
-  );
-  fileIndex.forEachFileSync((pathName: string) => {
+  // "this"
+  const res: AudioFileIndex = {
+    // Don't know if this is necessary
+    getHash: () => fragmentHash,
+    getLocation: () => data.location,
+    getLastScanTime: () => data.lastScanTime,
+    makeSongKey,
+    forEachImageFile,
+    forEachAudioFile,
+    forEachImageFileSync: (fn: PathHandlerSync) => data.picList.forEach(fn),
+    forEachAudioFileSync: (fn: PathHandlerSync) => data.songList.forEach(fn),
+    rescanFiles,
+    updateMetadata,
+    getMetadataForSong,
+    destroy: () => delIndex(res),
+  };
+  data.indexHashString = addIndex(fragmentHash, data.location, res);
+  data.fileIndex.forEachFileSync((pathName: string) => {
     if (audioTypes(pathName)) {
-      songList.push(pathName);
+      data.songList.push(pathName);
     } else {
       // assert(imageTypes(pathName));
-      picList.push(pathName);
+      data.picList.push(pathName);
     }
   });
 
-  // A hash table of h32's to path-names
-  const existingSongKeys = new Map<number, string>();
+  async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
+    for (const pic of data.picList) {
+      const foo = fn(pic);
+      if (Type.isPromise(foo)) {
+        await foo;
+      }
+    }
+  }
+
+  async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
+    for (const song of data.songList) {
+      const foo = fn(song);
+      if (Type.isPromise(foo)) {
+        await foo;
+      }
+    }
+  }
+
+  function getShortPath(songPath: string): string {
+    const absPath = path.resolve(songPath);
+    if (!absPath.startsWith(data.location)) {
+      throw Error(`Invalid prefix ${data.location} for songPath ${absPath}`);
+    }
+    return absPath.substr(data.location.length);
+  }
 
   // This *should* be pretty stable, with the rare exceptions of hash collisions
   function makeSongKey(songPath: string): SongKey {
     const shortPath = getShortPath(songPath);
     let hash = h32(shortPath, fragmentHash).toNumber();
-    while (existingSongKeys.has(hash)) {
-      const val = existingSongKeys.get(hash);
+    while (data.existingSongKeys.has(hash)) {
+      const val = data.existingSongKeys.get(hash);
       if (Type.isString(val) && pathCompare(val, shortPath) === 0) {
         break;
       }
@@ -224,12 +243,9 @@ export async function MakeAudioFileIndex(
       // Feed the old hash into the new hash to get a new value, cuz y not?
       hash = h32(songPath, hash).toNumber();
     }
-    existingSongKeys.set(hash, shortPath);
-    return `S${indexHashString}:${ToU8(hash)}`;
+    data.existingSongKeys.set(hash, shortPath);
+    return `S${data.indexHashString}:${ToU8(hash)}`;
   }
-
-  const metadataCache = await GetMetadataStore(persist, 'metadataCache');
-  const metadataOverride = await GetMetadataStore(persist, 'metadataOverride');
 
   function updateList(
     list: string[],
@@ -248,7 +264,7 @@ export async function MakeAudioFileIndex(
     const imageAdds = new Set<string>();
     const audioDels = new Set<string>();
     const imageDels = new Set<string>();
-    await fileIndex.rescanFiles(
+    await data.fileIndex.rescanFiles(
       async (pathName: string) => {
         if (audioTypes(pathName)) {
           if (addAudioFile) {
@@ -290,9 +306,9 @@ export async function MakeAudioFileIndex(
         }
       },
     );
-    songList = updateList(songList, audioAdds, audioDels);
-    picList = updateList(picList, imageAdds, imageDels);
-    lastScanTime = new Date();
+    data.songList = updateList(data.songList, audioAdds, audioDels);
+    data.picList = updateList(data.picList, imageAdds, imageDels);
+    data.lastScanTime = new Date();
   }
 
   async function updateMetadata(
@@ -312,11 +328,11 @@ export async function MakeAudioFileIndex(
 
     // If we've previously failed doing anything with this file, don't keep
     // banging our head against a wall
-    if (!metadataCache.shouldTry(fileName)) {
+    if (!data.metadataCache.shouldTry(fileName)) {
       return;
     }
     // Cached data overrides file path acquired metadata
-    const mdOverride = metadataOverride.get(fileName);
+    const mdOverride = data.metadataOverride.get(fileName);
     const littlemd: SimpleMetadata | void = Metadata.FromPath(fileName);
     if (littlemd) {
       const pathMd = Metadata.FullFromObj(fileName, littlemd as any);
@@ -336,19 +352,19 @@ export async function MakeAudioFileIndex(
     }
     if (!maybeMetadata) {
       log(`Complete metadata failure for ${fileName}`);
-      metadataCache.fail(fileName);
+      data.metadataCache.fail(fileName);
       return;
     }
     const fullMd = Metadata.FullFromObj(fileName, maybeMetadata as any);
     if (!fullMd) {
       log(`Partial metadata failure for ${fileName}`);
-      metadataCache.fail(fileName);
+      data.metadataCache.fail(fileName);
       return;
     }
     const overridden = { ...fullMd, ...mdOverride };
-    metadataCache.set(fileName, overridden);
+    data.metadataCache.set(fileName, overridden);
     // Don't need to wait on this one:
-    void metadataCache.save();
+    void data.metadataCache.save();
     return overridden;
     /*
     await handleAlbumCovers(idx);
