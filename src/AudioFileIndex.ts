@@ -256,12 +256,14 @@ export async function MakeAudioFileIndex(
     }
   });
 
+  // public
   async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
     for (const pic of data.picList) {
       await maybeWait(() => fn(pic));
     }
   }
 
+  // public
   async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
     for (const song of data.songList) {
       await maybeWait(() => fn(song));
@@ -277,6 +279,7 @@ export async function MakeAudioFileIndex(
   }
 
   // This *should* be pretty stable, with the rare exceptions of hash collisions
+  // public
   function makeSongKey(songPath: string): SongKey {
     const relPath = getRelativePath(songPath);
     let hash = h32(relPath, fragmentHash).toNumber();
@@ -301,6 +304,7 @@ export async function MakeAudioFileIndex(
     return list.concat([...adds]).filter((val) => !dels.has(val));
   }
 
+  // public
   async function rescanFiles(
     addAudioFile?: PathHandlerEither,
     delAudioFile?: PathHandlerEither,
@@ -326,6 +330,7 @@ export async function MakeAudioFileIndex(
     data.lastScanTime = new Date();
   }
 
+  // public
   async function getMetadataForSong(
     pathName: string,
   ): Promise<FullMetadata | void> {
@@ -376,6 +381,7 @@ export async function MakeAudioFileIndex(
     return overridden;
   }
 
+  // public
   function updateMetadata(newMetadata: MinimumMetadata): void {
     const relName = getRelativePath(newMetadata.originalPath);
     data.metadataCache.set(relName, { ...newMetadata, originalPath: relName });
