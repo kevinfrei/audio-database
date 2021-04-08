@@ -29,7 +29,7 @@ type PathHandlerBoth = (pathName: string) => Promise<void> | void;
 type PathHandlerEither = PathHandlerSync | PathHandlerAsync | PathHandlerBoth;
 
 export type AudioFileIndex = {
-  getHash(): number;
+  getHash(): string;
   getLocation(): string;
   makeSongKey(songPath: string): SongKey;
   forEachImageFile(fn: PathHandlerEither): Promise<void>;
@@ -70,18 +70,19 @@ function watchTypes(pathName: string) {
 // they should be routed to the appropriate MDF to update.
 
 // "Static" data for looking up stuff across multiple indices
-const indexKeyLookup = new Map<string, AudioFileIndex>();
 type IndexLocation = { location: string; index: AudioFileIndex };
 const lengthSortedPaths: IndexLocation[] = [];
+const indexKeyLookup = new Map<string, AudioFileIndex | null>();
 
 // Given a song key, this finds the file index that contains
 // SongKey's are formatted like this: S{hash-b16384}:{key-b64}
-export function GetIndexForKey(key: SongKey): AudioFileIndex | undefined {
+export function GetIndexForKey(key: SongKey): AudioFileIndex | void {
   const indexPortion = key.substring(1, key.indexOf(':'));
-  return indexKeyLookup.get(indexPortion);
+  const res = indexKeyLookup.get(indexPortion);
+  if (res) return res;
 }
 
-export function GetIndexForPath(pathName: string): AudioFileIndex | undefined {
+export function GetIndexForPath(pathName: string): AudioFileIndex | void {
   for (const { location, index } of lengthSortedPaths) {
     if (pathCompare(pathName.substring(0, location.length), location) === 0) {
       return index;
@@ -117,24 +118,27 @@ function addIndex(
   return u8;
 }
 
+// Remove the idnex from the location list
+// It hangs out in the WeakMap, cuz why not...
 function delIndex(index: AudioFileIndex) {
-  // TODO: Remove the index
+  // remove it from the path list
+  const loc = index.getLocation();
+  for (let i = 0; i < lengthSortedPaths.length; i++) {
+    if (lengthSortedPaths[i].index === index) {
+      if (lengthSortedPaths[i].location !== loc) {
+        err(`Index and location are mismatched for ${loc}`);
+      }
+      lengthSortedPaths.splice(i, 1);
+      return;
+    }
+  }
+  // Clear it from the map
+  // We don't delete it for consistent hashing? I haven't though through
+  // collisions very well
+  indexKeyLookup.set(index.getHash(), null);
 }
 
-type PrivateAudioFileIndexData = {
-  songList: string[];
-  picList: string[];
-  lastScanTime: Date | null;
-  location: string;
-  indexHashString: string;
-  persist: Persist;
-  fileIndex: FileIndex;
-  metadataCache: MetadataStore;
-  metadataOverride: MetadataStore;
-  existingSongKeys: Map<number, string>;
-  // TODO: Add an album cover storage location, too!
-};
-
+// Make sure the path has a final slash on it
 function trailingSlash(pathName: string): string {
   if (pathName.endsWith('/')) {
     return pathName;
@@ -143,6 +147,7 @@ function trailingSlash(pathName: string): string {
   }
 }
 
+// If the result is a promise, await it, otherwise don't
 async function maybeWait<T>(func: () => Promise<T> | T): Promise<T> {
   const res = func();
   if (Type.isPromise(res)) {
@@ -166,6 +171,20 @@ async function maybeCallAndAdd(
     theSet.add(pathName);
   }
 }
+
+type PrivateAudioFileIndexData = {
+  songList: string[];
+  picList: string[];
+  lastScanTime: Date | null;
+  location: string;
+  indexHashString: string;
+  persist: Persist;
+  fileIndex: FileIndex;
+  metadataCache: MetadataStore;
+  metadataOverride: MetadataStore;
+  existingSongKeys: Map<number, string>;
+  // TODO: Add an album cover storage location, too!
+};
 
 export async function MakeAudioFileIndex(
   locationName: string,
@@ -214,7 +233,7 @@ export async function MakeAudioFileIndex(
   // "this"
   const res: AudioFileIndex = {
     // Don't know if this is necessary
-    getHash: () => fragmentHash,
+    getHash: () => data.indexHashString,
     getLocation: () => data.location,
     getLastScanTime: () => data.lastScanTime,
     makeSongKey,
@@ -281,6 +300,7 @@ export async function MakeAudioFileIndex(
   ): string[] {
     return list.concat([...adds]).filter((val) => !dels.has(val));
   }
+
   async function rescanFiles(
     addAudioFile?: PathHandlerEither,
     delAudioFile?: PathHandlerEither,
@@ -361,7 +381,6 @@ export async function MakeAudioFileIndex(
     data.metadataCache.set(relName, { ...newMetadata, originalPath: relName });
   }
 
-  // TODO: Delegate this to the index
   /* async */ function handleAlbumCovers() {
     // Get all pictures from each directory.
     // Find the biggest and make it the album picture for any albums in that dir
@@ -420,11 +439,6 @@ export async function MakeAudioFileIndex(
     */
     // Metadata-hosted album covers are only acquired "on demand"
   }
-  /*
-   *
-   * Begin 'constructor' code here:
-   *
-   */
 
   return res;
 }

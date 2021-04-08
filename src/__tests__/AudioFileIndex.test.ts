@@ -1,3 +1,4 @@
+import { ToU8 } from '@freik/core-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
@@ -23,7 +24,7 @@ it('Some basic AudioFileIndex tests', async () => {
   });
 
   expect(count).toEqual(6);
-  expect(afi.getHash()).toEqual(0x1badcafe);
+  expect(afi.getHash()).toEqual(ToU8(0x1badcafe));
   expect(afi.getLocation()).toEqual(
     path.resolve('src/__tests__/audiofileindex') + '/',
   );
