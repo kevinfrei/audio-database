@@ -58,10 +58,7 @@ export type AudioDatabase = {
   save(filename: string): Promise<void>; // Some Testing
   // Updating
   refresh(): Promise<boolean>;
-  updateMetadata(
-    fullPath: string,
-    newMetadata: Partial<FullMetadata>,
-  ): Promise<boolean>;
+  updateMetadata(fullPath: string, newMetadata: Partial<FullMetadata>): boolean;
 
   // API
   getSong(key: SongKey): SongWithPath | void;
@@ -592,16 +589,17 @@ export async function MakeAudioDatabase(
     );
   }
 
-  async function updateMetadata(
+  function updateMetadata(
     fullPath: string,
     newMetadata: Partial<FullMetadata>,
-  ): Promise<boolean> {
+  ): boolean {
     // Update this to delete the old song and add the new one...
     const indexForPath = GetIndexForPath(fullPath);
     if (!indexForPath) {
       return false;
     }
-    return await indexForPath.updateMetadata(fullPath, newMetadata);
+    indexForPath.updateMetadata({ ...newMetadata, originalPath: fullPath });
+    return true;
   }
   /*
    *

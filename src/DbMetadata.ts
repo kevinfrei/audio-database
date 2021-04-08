@@ -210,6 +210,7 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
     dirty = true;
     store.set(path, md);
     stopTrying.delete(path);
+    void save();
   }
   function fail(path: string) {
     if (stopTrying.has(path)) {
@@ -222,6 +223,7 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
     return !stopTrying.has(path);
   }
   async function save() {
+    // TODO: debounce this?
     if (!dirty) {
       log('Not saving: Store is not dirty');
       return;

@@ -12,7 +12,12 @@ import {
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
-import { GetMetadataStore, IsFullMetadata, MetadataStore } from './DbMetadata';
+import {
+  GetMetadataStore,
+  IsFullMetadata,
+  MetadataStore,
+  MinimumMetadata,
+} from './DbMetadata';
 
 // eslint-disable-next-line
 const log = MakeLogger('AudioFileIndex', true);
@@ -39,10 +44,7 @@ export type AudioFileIndex = {
     addImageFile?: PathHandlerEither,
     delImageFile?: PathHandlerEither,
   ): Promise<void>;
-  updateMetadata(
-    keyOrPath: SongKey | string,
-    newMetadata: Partial<FullMetadata>,
-  ): Promise<boolean>;
+  updateMetadata(newMetadata: MinimumMetadata): void;
   getMetadataForSong(filePath: string): Promise<FullMetadata | void>;
   destroy(): void;
 };
@@ -130,7 +132,40 @@ type PrivateAudioFileIndexData = {
   metadataCache: MetadataStore;
   metadataOverride: MetadataStore;
   existingSongKeys: Map<number, string>;
+  // TODO: Add an album cover storage location, too!
 };
+
+function trailingSlash(pathName: string): string {
+  if (pathName.endsWith('/')) {
+    return pathName;
+  } else {
+    return pathName + '/';
+  }
+}
+
+async function maybeWait<T>(func: () => Promise<T> | T): Promise<T> {
+  const res = func();
+  if (Type.isPromise(res)) {
+    return await res;
+  } else {
+    return res;
+  }
+}
+
+// Helper for the file watcher stuff
+async function maybeCallAndAdd(
+  checker: (arg: string) => boolean,
+  theSet: Set<string>,
+  pathName: string,
+  func?: PathHandlerEither,
+): Promise<void> {
+  if (checker(pathName)) {
+    if (func) {
+      await maybeWait(() => func(pathName));
+    }
+    theSet.add(pathName);
+  }
+}
 
 export async function MakeAudioFileIndex(
   locationName: string,
@@ -140,8 +175,7 @@ export async function MakeAudioFileIndex(
   /*
    * "member" data goes here
    */
-  const _location =
-    path.resolve(locationName) + (locationName.endsWith('/') ? '' : '/');
+  const _location = trailingSlash(path.resolve(locationName));
   // IIFE
   const _persist = await (async () => {
     const pathName = path.join(_location, '.emp');
@@ -205,23 +239,17 @@ export async function MakeAudioFileIndex(
 
   async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
     for (const pic of data.picList) {
-      const foo = fn(pic);
-      if (Type.isPromise(foo)) {
-        await foo;
-      }
+      await maybeWait(() => fn(pic));
     }
   }
 
   async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
     for (const song of data.songList) {
-      const foo = fn(song);
-      if (Type.isPromise(foo)) {
-        await foo;
-      }
+      await maybeWait(() => fn(song));
     }
   }
 
-  function getShortPath(songPath: string): string {
+  function getRelativePath(songPath: string): string {
     const absPath = path.resolve(songPath);
     if (!absPath.startsWith(data.location)) {
       throw Error(`Invalid prefix ${data.location} for songPath ${absPath}`);
@@ -231,18 +259,18 @@ export async function MakeAudioFileIndex(
 
   // This *should* be pretty stable, with the rare exceptions of hash collisions
   function makeSongKey(songPath: string): SongKey {
-    const shortPath = getShortPath(songPath);
-    let hash = h32(shortPath, fragmentHash).toNumber();
+    const relPath = getRelativePath(songPath);
+    let hash = h32(relPath, fragmentHash).toNumber();
     while (data.existingSongKeys.has(hash)) {
       const val = data.existingSongKeys.get(hash);
-      if (Type.isString(val) && pathCompare(val, shortPath) === 0) {
+      if (Type.isString(val) && pathCompare(val, relPath) === 0) {
         break;
       }
       err(`songKey hash collision: "${songPath}"`);
       // Feed the old hash into the new hash to get a new value, cuz y not?
       hash = h32(songPath, hash).toNumber();
     }
-    data.existingSongKeys.set(hash, shortPath);
+    data.existingSongKeys.set(hash, relPath);
     return `S${data.indexHashString}:${ToU8(hash)}`;
   }
 
@@ -265,44 +293,12 @@ export async function MakeAudioFileIndex(
     const imageDels = new Set<string>();
     await data.fileIndex.rescanFiles(
       async (pathName: string) => {
-        if (audioTypes(pathName)) {
-          if (addAudioFile) {
-            const aaf = addAudioFile(pathName);
-            if (Type.isPromise(aaf)) {
-              await aaf;
-            }
-          }
-          audioAdds.add(pathName);
-        }
-        if (imageTypes(pathName)) {
-          if (addImageFile) {
-            const aif = addImageFile(pathName);
-            if (Type.isPromise(aif)) {
-              await aif;
-            }
-          }
-          imageAdds.add(pathName);
-        }
+        await maybeCallAndAdd(audioTypes, audioAdds, pathName, addAudioFile);
+        await maybeCallAndAdd(imageTypes, imageAdds, pathName, addImageFile);
       },
       async (pathName: string) => {
-        if (audioTypes(pathName)) {
-          if (delAudioFile) {
-            const daf = delAudioFile(pathName);
-            if (Type.isPromise(daf)) {
-              await daf;
-            }
-          }
-          audioDels.add(pathName);
-        }
-        if (imageTypes(pathName)) {
-          if (delImageFile) {
-            const dif = delImageFile(pathName);
-            if (Type.isPromise(dif)) {
-              await dif;
-            }
-          }
-          imageDels.add(pathName);
-        }
+        await maybeCallAndAdd(audioTypes, audioDels, pathName, delAudioFile);
+        await maybeCallAndAdd(imageTypes, imageDels, pathName, delImageFile);
       },
     );
     data.songList = updateList(data.songList, audioAdds, audioDels);
@@ -313,19 +309,19 @@ export async function MakeAudioFileIndex(
   async function getMetadataForSong(
     pathName: string,
   ): Promise<FullMetadata | void> {
-    const fileName = getShortPath(pathName);
+    const relPath = getRelativePath(pathName);
 
     // If we've previously failed doing anything with this file, don't keep
     // banging our head against a wall
-    if (!data.metadataCache.shouldTry(fileName)) {
+    if (!data.metadataCache.shouldTry(relPath)) {
       return;
     }
     // Cached data overrides file path acquired metadata
-    const mdOverride = data.metadataOverride.get(fileName);
-    const littlemd: SimpleMetadata | void = Metadata.FromPath(fileName);
+    const mdOverride = data.metadataOverride.get(relPath);
+    const littlemd: SimpleMetadata | void = Metadata.FromPath(relPath);
     if (littlemd) {
       const pathMd = Metadata.FullFromObj(
-        path.resolve(path.join(data.location, fileName)),
+        path.resolve(path.join(data.location, relPath)),
         littlemd as any,
       );
       const md = { ...pathMd, ...mdOverride };
@@ -337,72 +333,36 @@ export async function MakeAudioFileIndex(
     // This does some stuff about trying harder for files that don't parse right
     let maybeMetadata = null;
     try {
-      maybeMetadata = await Metadata.FromFileAsync(fileName);
+      maybeMetadata = await Metadata.FromFileAsync(relPath);
     } catch (e) {
-      err(`Failed acquiring metadata from ${fileName}:`);
+      err(`Failed acquiring metadata from ${relPath}:`);
       err(e);
     }
     if (!maybeMetadata) {
-      log(`Complete metadata failure for ${fileName}`);
-      data.metadataCache.fail(fileName);
+      log(`Complete metadata failure for ${relPath}`);
+      data.metadataCache.fail(relPath);
       return;
     }
-    const fullMd = Metadata.FullFromObj(fileName, maybeMetadata as any);
+    const fullMd = Metadata.FullFromObj(relPath, maybeMetadata as any);
     if (!fullMd) {
-      log(`Partial metadata failure for ${fileName}`);
-      data.metadataCache.fail(fileName);
+      log(`Partial metadata failure for ${relPath}`);
+      data.metadataCache.fail(relPath);
       return;
     }
     const overridden = { ...fullMd, ...mdOverride };
-    data.metadataCache.set(fileName, overridden);
+    data.metadataCache.set(relPath, overridden);
     // Don't need to wait on this one:
     void data.metadataCache.save();
     return overridden;
-    /*
-    await handleAlbumCovers(idx);
-    */
   }
 
-  async function updateMetadata(
-    keyOrPath: SongKey | string,
-    newMetadata: Partial<FullMetadata>,
-  ): Promise<boolean> {
-    const hasArtist = Type.has(newMetadata, 'artist'); // string | string[]
-    const hasAlbum = Type.hasStr(newMetadata, 'album');
-    const hasTrack = Type.has(newMetadata, 'track'); // number
-    const hasTitle = Type.hasStr(newMetadata, 'title');
-    const hasVA = Type.hasStr(newMetadata, 'vaType'); // 'va' | 'ost'
-    const hasMoreArtists = Type.has(newMetadata, 'moreArtists'); // string[]
-    const hasVariations = Type.has(newMetadata, 'variations'); // string[]
-    const hasDisk = Type.has(newMetadata, 'disk'); // number
-    // Let's handle the simple stuff: title, track number, disk number
-    /*    const songKey = makeSongKey(fullPath);
-    const song = db.songs.get(songKey);
-    const tn: number = hasTrack ? newMetadata.track! : song.track % 100;
-    const dn: number = hasDisk ? newMetadata.disk! : song.track / 100;
-    if (song && !hasArtist && !hasAlbum && !hasVA && !hasMoreArtists) {
-      if (hasVariations) {
-        song.variations = newMetadata.variations;
-      }
-      if (hasDisk || hasTrack) {
-        song.track = tn + dn * 100;
-      }
-      if (hasTitle) {
-        song.title = newMetadata.title!;
-      }
-      // Update the search index
-      setMusicIndex(makeIndex(db));
-      sendUpdatedDB(db);
-      return;
-    }*/
-    // TODO: Fill this in
-    return new Promise<boolean>(() => {
-      /* */
-    });
+  function updateMetadata(newMetadata: MinimumMetadata): void {
+    const relName = getRelativePath(newMetadata.originalPath);
+    data.metadataCache.set(relName, { ...newMetadata, originalPath: relName });
   }
 
   // TODO: Delegate this to the index
-  /* async */ function handleAlbumCovers(idx: AudioFileIndex) {
+  /* async */ function handleAlbumCovers() {
     // Get all pictures from each directory.
     // Find the biggest and make it the album picture for any albums in that dir
     /*
