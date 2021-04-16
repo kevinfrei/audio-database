@@ -42,4 +42,17 @@ it('Some basic AudioFileIndex tests', async () => {
     year: 2010,
     originalPath: fullPath,
   });
+  afi.updateMetadata({
+    title: 'This is an empty mp3 file',
+    originalPath: fullPath,
+  });
+  const newMd = await afi.getMetadataForSong(fullPath);
+  expect(newMd).toEqual({
+    album: 'Test Album',
+    artist: 'Test Artist',
+    title: 'This is an empty mp3 file',
+    track: 1,
+    year: 2010,
+    originalPath: fullPath,
+  });
 });
