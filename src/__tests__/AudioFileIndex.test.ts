@@ -3,10 +3,16 @@ import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
 
-async function cleanup() {
+async function remove(name: string) {
   try {
-    await fsp.rm('src/__tests__/audiofileindex/.emp/fileIndex.txt');
+    await fsp.rm(name);
   } catch (e) {}
+}
+
+async function cleanup() {
+  await remove('src/__tests__/audiofileindex/.emp/fileIndex.txt');
+  //  await remove('src/__tests__/audiofileindex/.emp/metadataCache.json');
+  await remove('src/__tests__/audiofileindex/.emp/metadataOverride.json');
 }
 
 beforeAll(cleanup);

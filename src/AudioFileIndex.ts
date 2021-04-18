@@ -345,11 +345,9 @@ export async function MakeAudioFileIndex(
     const mdOverride = data.metadataOverride.get(relPath);
     const littlemd: SimpleMetadata | void = Metadata.FromPath(relPath);
     if (littlemd) {
-      const pathMd = Metadata.FullFromObj(
-        path.resolve(path.join(data.location, relPath)),
-        littlemd as any,
-      );
-      const md = { ...pathMd, ...mdOverride };
+      const fullPath = path.resolve(path.join(data.location, relPath));
+      const pathMd = Metadata.FullFromObj(fullPath, littlemd as any);
+      const md = { ...pathMd, ...mdOverride, originalPath: fullPath };
 
       if (IsFullMetadata(md)) {
         return md;
@@ -384,7 +382,10 @@ export async function MakeAudioFileIndex(
   // public
   function updateMetadata(newMetadata: MinimumMetadata): void {
     const relName = getRelativePath(newMetadata.originalPath);
-    data.metadataCache.set(relName, { ...newMetadata, originalPath: relName });
+    data.metadataOverride.set(relName, {
+      ...newMetadata,
+      originalPath: relName,
+    });
   }
 
   /* async */ function handleAlbumCovers() {
