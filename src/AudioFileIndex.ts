@@ -9,7 +9,7 @@ import {
   MakeFileIndex,
   pathCompare,
 } from '@freik/node-utils/lib/FileIndex';
-import { promises as fsp } from 'fs';
+import { constants as FS_CONST, promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
 import {
@@ -57,6 +57,16 @@ function watchTypes(pathName: string) {
     imageTypes(pathName) ||
     (audioTypes(pathName) && !path.basename(pathName).startsWith('.'))
   );
+}
+
+async function isWritableDir(pathName: string) {
+  try {
+    await fsp.access(pathName, FS_CONST.W_OK);
+    const s = await fsp.stat(pathName);
+    return s.isDirectory();
+  } catch (e) {
+    return false;
+  }
 }
 
 // An "audio data fragment" is a list of files and metadata info.
@@ -189,7 +199,7 @@ type PrivateAudioFileIndexData = {
 export async function MakeAudioFileIndex(
   locationName: string,
   fragmentHash: number,
-  /*  writableLocation: string,*/
+  readonlyFallbackLocation?: string,
 ): Promise<AudioFileIndex> {
   /*
    * "member" data goes here
@@ -199,18 +209,24 @@ export async function MakeAudioFileIndex(
   const _persist = await (async () => {
     const pathName = path.join(_location, '.emp');
     try {
-      const str = await fsp.mkdir(pathName, { recursive: true });
-      if (Type.isString(str)) {
-        // If we created the folder, we also want to hide it, cuz turd files
-        // are truly annoying
-        await hideFile(pathName);
-      } else {
-        // TODO: Handle read-only file systems in here?
+      if (!(await isWritableDir(pathName))) {
+        const str = await fsp.mkdir(pathName, { recursive: true });
+        if (Type.isString(str)) {
+          // If we created the folder, we also want to hide it, cuz turd files
+          // are truly annoying
+          await hideFile(pathName);
+        }
       }
+      return MakePersistence(pathName);
     } catch (e) {
-      // TODO: Handle read-only file systems in here?
+      // Probably a read only file system
     }
-    return MakePersistence(pathName);
+    // For readonly stuff, use the fallback location
+    if (Type.isString(readonlyFallbackLocation)) {
+      return MakePersistence(path.resolve(locationName));
+    } else {
+      throw new Error(`Non-writable location: ${locationName}`);
+    }
   })();
   const data: PrivateAudioFileIndexData = {
     songList: [],

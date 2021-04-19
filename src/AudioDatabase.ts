@@ -45,8 +45,12 @@ export type FlatAudioDatabase = {
 export type AudioDatabase = {
   // General stuff
   addAudioFileIndex(idx: AudioFileIndex): void;
-  getPicture(key: AlbumKey): string;
-  setPicture(key: AlbumKey, filepath: string): void;
+  getAlbumPicture(key: AlbumKey): string;
+  setAlbumPicture(key: AlbumKey, filepath: string): void;
+  getArtistPicture(key: ArtistKey): string;
+  setArtistPicture(key: ArtistKey, filepath: string): void;
+  getSongPicture(key: SongKey): string;
+  setSongPicture(key: SongKey, filepath: string): void;
   addSongFromPath(filepath: string): void; // Some Testing
   addOrUpdateSong(md: FullMetadata): void;
   delSongByPath(filepath: string): boolean; // Some Testing
@@ -624,8 +628,12 @@ export async function MakeAudioDatabase(
     getArtist: (key: ArtistKey) => data.dbArtists.get(key),
     getAlbum: (key: AlbumKey) => data.dbAlbums.get(key),
     addAudioFileIndex,
-    getPicture,
-    setPicture,
+    getArtistPicture: getPicture,
+    setArtistPicture: setPicture,
+    getAlbumPicture: getPicture,
+    setAlbumPicture: setPicture,
+    getSongPicture: getPicture,
+    setSongPicture: setPicture,
     addSongFromPath,
     addOrUpdateSong,
     delSongByPath,

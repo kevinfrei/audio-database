@@ -1,6 +1,7 @@
 import { MakePersistence } from '@freik/node-utils';
-import fs, { promises as fsp } from 'fs';
+import fs from 'fs';
 import { MakeAudioDatabase } from '../AudioDatabase';
+import { remove } from './AudioFileIndex.test';
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
 const {
@@ -10,6 +11,7 @@ const {
   flatDBwithBoth,
   flatDBwithSecond,
 } = JSON.parse(fs.readFileSync('./src/__tests__/data.json').toString()) as any;
+
 // Initialization if we need anything
 beforeAll(() => {
   return;
@@ -17,10 +19,7 @@ beforeAll(() => {
 
 afterAll(async () => {
   // Clean-up after the test
-  try {
-    await fsp.unlink('./src/__tests__/persist-basic/test.json');
-  } catch (e) {}
-  return;
+  remove('./src/__tests__/persist-basic/test.json');
 });
 
 function swap<T>(items: T[]) {
