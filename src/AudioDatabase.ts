@@ -19,6 +19,7 @@ import {
   Artist,
   ArtistKey,
   FullMetadata,
+  MediaKey,
   SongKey,
 } from '@freik/media-core';
 import { MakePersistence, Persist } from '@freik/node-utils';
@@ -80,7 +81,7 @@ type PrivateAudioData = {
   dbSongs: Map<SongKey, SongWithPath>;
   dbAlbums: Map<AlbumKey, Album>;
   dbArtists: Map<ArtistKey, Artist>;
-  dbPictures: Map<ArtistKey, string>;
+  dbPictures: Map<MediaKey, string>;
   albumTitleIndex: Map<string, AlbumKey[]>;
   artistNameIndex: Map<string, ArtistKey>;
   keywordIndex: MusicSearch | null;
@@ -100,7 +101,7 @@ export async function MakeAudioDatabase(
     dbSongs: new Map<SongKey, SongWithPath>(),
     dbAlbums: new Map<AlbumKey, Album>(),
     dbArtists: new Map<ArtistKey, Artist>(),
-    dbPictures: new Map<ArtistKey, string>(),
+    dbPictures: new Map<MediaKey, string>(),
     albumTitleIndex: new Map<string, AlbumKey[]>(),
     artistNameIndex: new Map<string, ArtistKey>(),
     keywordIndex: null,
@@ -122,7 +123,7 @@ export async function MakeAudioDatabase(
   /*
    * Member functions
    */
-  function getPicture(key: AlbumKey): string {
+  function getPicture(key: MediaKey): string {
     const p = data.dbPictures.get(key);
     if (p) {
       return p;
@@ -130,7 +131,7 @@ export async function MakeAudioDatabase(
     return '*TODO: Default Picture Path*';
   }
 
-  function setPicture(key: AlbumKey, filePath: string) {
+  function setPicture(key: MediaKey, filePath: string) {
     data.dbPictures.set(key, filePath);
   }
 
@@ -556,7 +557,7 @@ export async function MakeAudioDatabase(
     const songs = flattened.dbSongs as Map<SongKey, SongWithPath>;
     const albums = flattened.dbAlbums as Map<AlbumKey, Album>;
     const artists = flattened.dbArtists as Map<ArtistKey, Artist>;
-    const pictures = flattened.dbPictures as Map<ArtistKey, string>;
+    const pictures = flattened.dbPictures as Map<MediaKey, string>;
     const titleIndex = flattened.albumTitleIndex as Map<string, AlbumKey[]>;
     const nameIndex = flattened.artistNameIndex as Map<string, ArtistKey>;
     const idx = flattened.indices as { location: string; hash: number }[];
