@@ -1,8 +1,25 @@
 /* eslint-disable no-underscore-dangle */
-import { MakeError, MakeLogger, ToU8, Type } from '@freik/core-utils';
-import { FullMetadata, SimpleMetadata, SongKey } from '@freik/media-core';
+import {
+  MakeError,
+  MakeLogger,
+  MaybeWait,
+  ToPathSafeName,
+  ToU8,
+  Type,
+} from '@freik/core-utils';
+import {
+  FullMetadata,
+  MediaKey,
+  SimpleMetadata,
+  SongKey,
+} from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
-import { MakePersistence, MakeSuffixWatcher, Persist } from '@freik/node-utils';
+import {
+  MakePersistence,
+  MakeSuffixWatcher,
+  PathUtil,
+  Persist,
+} from '@freik/node-utils';
 import { hideFile } from '@freik/node-utils/lib/file';
 import {
   FileIndex,
@@ -12,6 +29,7 @@ import {
 import { constants as FS_CONST, promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
+import { BlobStore, MakeBlobStore } from './BlobStore';
 import {
   GetMetadataStore,
   IsFullMetadata,
@@ -148,25 +166,6 @@ function delIndex(index: AudioFileIndex) {
   indexKeyLookup.set(index.getHash(), null);
 }
 
-// Make sure the path has a final slash on it
-function trailingSlash(pathName: string): string {
-  if (pathName.endsWith('/')) {
-    return pathName;
-  } else {
-    return pathName + '/';
-  }
-}
-
-// If the result is a promise, await it, otherwise don't
-async function maybeWait<T>(func: () => Promise<T> | T): Promise<T> {
-  const res = func();
-  if (Type.isPromise(res)) {
-    return await res;
-  } else {
-    return res;
-  }
-}
-
 // Helper for the file watcher stuff
 async function maybeCallAndAdd(
   checker: (arg: string) => boolean,
@@ -176,7 +175,7 @@ async function maybeCallAndAdd(
 ): Promise<void> {
   if (checker(pathName)) {
     if (func) {
-      await maybeWait(() => func(pathName));
+      await MaybeWait(() => func(pathName));
     }
     theSet.add(pathName);
   }
@@ -192,6 +191,7 @@ type PrivateAudioFileIndexData = {
   fileIndex: FileIndex;
   metadataCache: MetadataStore;
   metadataOverride: MetadataStore;
+  pictures: BlobStore<SongKey>;
   existingSongKeys: Map<number, string>;
   // TODO: Add an album cover storage location, too!
 };
@@ -204,7 +204,7 @@ export async function MakeAudioFileIndex(
   /*
    * "member" data goes here
    */
-  const _location = trailingSlash(path.resolve(locationName));
+  const _location = PathUtil.trailingSlash(path.resolve(locationName));
   // IIFE
   const _persist = await (async () => {
     const pathName = path.join(_location, '.emp');
@@ -244,6 +244,10 @@ export async function MakeAudioFileIndex(
     metadataOverride: await GetMetadataStore(_persist, 'metadataOverride'),
     // A hash table of h32's to path-names
     existingSongKeys: new Map<number, string>(),
+    pictures: await MakeBlobStore(
+      (key: MediaKey) => ToPathSafeName(key),
+      path.join(_location, 'images'),
+    ),
   };
 
   // "this"
@@ -275,14 +279,14 @@ export async function MakeAudioFileIndex(
   // public
   async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
     for (const pic of data.picList) {
-      await maybeWait(() => fn(pic));
+      await MaybeWait(() => fn(pic));
     }
   }
 
   // public
   async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
     for (const song of data.songList) {
-      await maybeWait(() => fn(song));
+      await MaybeWait(() => fn(song));
     }
   }
 
