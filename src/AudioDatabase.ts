@@ -124,6 +124,7 @@ export async function MakeAudioDatabase(
    * Member functions
    */
   function getPicture(key: MediaKey): string {
+    // TODO: This is *not* correct: Update this to get the picture from the AFI
     const p = data.dbPictures.get(key);
     if (p) {
       return p;
@@ -132,6 +133,7 @@ export async function MakeAudioDatabase(
   }
 
   function setPicture(key: MediaKey, filePath: string) {
+    // TODO: This is *not* correct: Update this to forward the data to the AFI
     data.dbPictures.set(key, filePath);
   }
 
@@ -448,6 +450,7 @@ export async function MakeAudioDatabase(
   function addAudioFileIndex(idx: AudioFileIndex) {
     // Keep this thing around for future updating when the metadata
     // caching is moved into the file index
+    // TODO: Add the *files* from the AFI (and rebuild the search index)
     // TODO: Migrate metadata caching/overrides to the AFI
     data.dbAudioIndices.push(idx);
   }
