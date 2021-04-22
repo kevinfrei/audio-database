@@ -9,7 +9,7 @@ capabilites here. The first one that seems like it's sort of doable is
 refresh.
 
 It's not using a class, because I like data hiding, and closures are a better
-model than JavaScript classes, so if you want to use it, call
+model than JavaScript classes, so if you want to use it, await
 `MakeAudioDatabase` and you're on your way. I will do my best to stick with
 semantic versioning, so I'll make sure and bump the minor version for any
 breaking changes. I haven't yet published it to NPM, but I will do so pretty

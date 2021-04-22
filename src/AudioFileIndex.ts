@@ -3,6 +3,7 @@ import {
   FromU8,
   MakeError,
   MakeLogger,
+  MakeMultiMap,
   MaybeWait,
   ToPathSafeName,
   ToU8,
@@ -43,20 +44,16 @@ type PathHandlerBoth = (pathName: string) => Promise<void> | void;
 type PathHandlerEither = PathHandlerSync | PathHandlerAsync | PathHandlerBoth;
 
 export type AudioFileIndex = {
-  getHash(): string;
-  getLocation(): string;
-  makeSongKey(songPath: string): SongKey;
-  forEachImageFile(fn: PathHandlerEither): Promise<void>;
+  getHash(): string; // basic test
+  getLocation(): string; // basic test
+  makeSongKey(songPath: string): SongKey; // basic test
   forEachAudioFile(fn: PathHandlerEither): Promise<void>;
-  forEachImageFileSync(fn: PathHandlerSync): void;
-  forEachAudioFileSync(fn: PathHandlerSync): void;
+  forEachAudioFileSync(fn: PathHandlerSync): void; // basic test
   getLastScanTime(): Date | null;
   // When we rescan files, look at file path diffs
   rescanFiles(
     addAudioFile?: PathHandlerEither,
     delAudioFile?: PathHandlerEither,
-    addImageFile?: PathHandlerEither,
-    delImageFile?: PathHandlerEither,
   ): Promise<void>;
   updateMetadata(newMetadata: MinimumMetadata): void;
   getMetadataForSong(filePath: string): Promise<FullMetadata | void>;
@@ -198,7 +195,7 @@ export async function MakeAudioFileIndex(
   const _location = PathUtil.trailingSlash(path.resolve(locationName));
   // IIFE
   const _persist = await (async () => {
-    const pathName = path.join(_location, '.emp');
+    const pathName = path.join(_location, '.afi');
     try {
       if (!(await isWritableDir(pathName))) {
         const str = await fsp.mkdir(pathName, { recursive: true });
@@ -220,9 +217,9 @@ export async function MakeAudioFileIndex(
     }
   })();
   const data = {
-    songList: ((): string[] => [])(), // IIFE's instead of a full type
-    picList: ((): string[] => [])(), // Same here
-    lastScanTime: ((): Date | null => null)(), // And here :)
+    songList: new Array<string>(),
+    picList: new Array<string>(),
+    lastScanTime: ((): Date | null => null)(), // IIFE instead of a full type
     location: _location,
     indexHashString: '',
     persist: _persist,
@@ -239,6 +236,7 @@ export async function MakeAudioFileIndex(
       (key: MediaKey) => ToPathSafeName(key),
       path.join(_location, 'images'),
     ),
+    fileSystemPictures: new Map<string, string>(),
   };
 
   // "this"
@@ -248,9 +246,7 @@ export async function MakeAudioFileIndex(
     getLocation: () => data.location,
     getLastScanTime: () => data.lastScanTime,
     makeSongKey,
-    forEachImageFile,
     forEachAudioFile,
-    forEachImageFileSync: (fn: PathHandlerSync) => data.picList.forEach(fn),
     forEachAudioFileSync: (fn: PathHandlerSync) => data.songList.forEach(fn),
     rescanFiles,
     updateMetadata,
@@ -268,13 +264,7 @@ export async function MakeAudioFileIndex(
       data.picList.push(pathName);
     }
   });
-
-  // public
-  async function forEachImageFile(fn: PathHandlerEither): Promise<void> {
-    for (const pic of data.picList) {
-      await MaybeWait(() => fn(pic));
-    }
-  }
+  await handleAlbumCovers();
 
   // public
   async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
@@ -285,7 +275,7 @@ export async function MakeAudioFileIndex(
 
   // Pull out a relative path that we can use as an OS agnostic locater
   function getRelativePath(songPath: string): string {
-    const absPath = path.resolve(songPath);
+    const absPath = getFullPath(songPath);
     if (!absPath.startsWith(data.location)) {
       throw Error(`Invalid prefix ${data.location} for songPath ${absPath}`);
     }
@@ -370,8 +360,6 @@ export async function MakeAudioFileIndex(
   async function rescanFiles(
     addAudioFile?: PathHandlerEither,
     delAudioFile?: PathHandlerEither,
-    addImageFile?: PathHandlerEither,
-    delImageFile?: PathHandlerEither,
   ) {
     const audioAdds = new Set<string>();
     const imageAdds = new Set<string>();
@@ -380,15 +368,16 @@ export async function MakeAudioFileIndex(
     await data.fileIndex.rescanFiles(
       async (pathName: string) => {
         await maybeCallAndAdd(audioTypes, audioAdds, pathName, addAudioFile);
-        await maybeCallAndAdd(imageTypes, imageAdds, pathName, addImageFile);
+        await maybeCallAndAdd(imageTypes, imageAdds, pathName);
       },
       async (pathName: string) => {
         await maybeCallAndAdd(audioTypes, audioDels, pathName, delAudioFile);
-        await maybeCallAndAdd(imageTypes, imageDels, pathName, delImageFile);
+        await maybeCallAndAdd(imageTypes, imageDels, pathName);
       },
     );
     data.songList = updateList(data.songList, audioAdds, audioDels);
     data.picList = updateList(data.picList, imageAdds, imageDels);
+    await handleAlbumCovers();
     data.lastScanTime = new Date();
   }
 
@@ -397,7 +386,6 @@ export async function MakeAudioFileIndex(
     pathName: string,
   ): Promise<FullMetadata | void> {
     const relPath = getRelativePath(pathName);
-
     // If we've previously failed doing anything with this file, don't keep
     // banging our head against a wall
     if (!data.metadataCache.shouldTry(relPath)) {
@@ -459,6 +447,17 @@ export async function MakeAudioFileIndex(
     await data.pictures.put(buf, key);
   }
 
+  async function loadCoverFromFile(fullPath: string): Promise<Buffer | void> {
+    // TODO: Maybe keep track of which files we've already ready from, so we
+    // can skip this step in the future, yes?
+    // Or instead leave this up to the AFI consumer to implement?
+    const maybeData = await Covers.ReadFromFile(fullPath);
+    if (maybeData) {
+      const buffer = Buffer.from(maybeData.data, 'base64');
+      // TODO: Save this outside the file, right?
+      return buffer;
+    }
+  }
   // public
   async function getImageForSong(
     keyOrPath: SongKey | string,
@@ -471,87 +470,61 @@ export async function MakeAudioFileIndex(
       return maybe;
     }
 
-    // Next, check the song or the album
+    // Next, check the song (if preferred)
+    const fullPath = pathFromKeyOrPath(keyOrPath);
     if (preferInternal) {
-      // TODO: Continue
-    }
-    // First, pull out the number from the key
-    const localPiece = key.substr(key.indexOf(':') + 1);
-    const val = FromU8(localPiece);
-    // Look up the relative path
-    const relName = data.existingSongKeys.get(val);
-    if (relName) {
-      const fullpath = getFullPath(relName);
-      // TODO: Maybe keep track of which files we've already ready from, so we
-      // can skip this step in the future, yes?
-      // Or instead leave this up to the AFI consumer to implement?
-      const maybeData = await Covers.ReadFromFile(fullpath);
-      if (maybeData) {
-        const buffer = Buffer.from(maybeData.data, 'base64');
-        // TODO: Save this outside the file, right?
-        return buffer;
+      const maybeBuffer = await loadCoverFromFile(fullPath);
+      if (maybeBuffer) {
+        return maybeBuffer;
       }
-      // We didn't find anything in the file, time to look in the folder
+    }
+    // Check for a folder-hosted image
+    const maybeFile = data.fileSystemPictures.get(getRelativePath(fullPath));
+    if (maybeFile) {
+      return await fsp.readFile(fullPath);
+    }
+    // We didn't find folder-hosted image, check the file if we didn't earlier
+    if (!preferInternal) {
+      return await loadCoverFromFile(fullPath);
     }
   }
 
-  /* async */ function handleAlbumCovers() {
+  async function handleAlbumCovers() {
     // Get all pictures from each directory.
     // Find the biggest and make it the album picture for any albums in that dir
-    /*
-    const dirsToPics = new Map<string, Set<string>>();
-    idx.forEachImageFile((p) => {
+
+    const dirsToPics = MakeMultiMap<string, string>();
+    const dirsToSongs = MakeMultiMap<string, string>();
+    data.picList.forEach((p) => {
       const dirName = path.dirname(p);
-      const val = dirsToPics.get(dirName);
-      if (val) {
-        val.add(p);
-      } else {
-        dirsToPics.set(dirName, new Set([p]));
-      }
+      dirsToPics.set(dirName, p);
     });
-    const dirsToAlbums = new Map<string, Set<Album>>();
-    for (const a of data.dbAlbums.values()) {
-      for (const s of a.songs) {
-        const theSong = data.dbSongs.get(s);
-        if (!theSong) {
-          continue;
-        }
-        const thePath = theSong.path;
-        const dirName = path.dirname(thePath);
-        // We only need to track directories if we found folders in them...
-        if (!dirsToPics.has(dirName)) {
-          continue;
-        }
-        const val = dirsToAlbums.get(dirName);
-        if (val) {
-          val.add(a);
-        } else {
-          dirsToAlbums.set(dirName, new Set([a]));
-        }
-      }
-    }
+    data.songList.forEach((p) => {
+      const dirName = path.dirname(p);
+      dirsToSongs.set(dirName, getRelativePath(p));
+    });
+
     // Now, for each dir, find the biggest file and dump it in the database
     // for each album that has stuff in that directory
     type SizeAndName = { size: number; name: string };
 
-    for (const [dirName, setOfFiles] of dirsToPics) {
-      const albums = dirsToAlbums.get(dirName);
-      if (!albums || !albums.size) {
-        continue;
-      }
-      let largest: SizeAndName = { size: 0, name: '' };
-      for (const cur of setOfFiles.values()) {
-        const fileStat = await fsp.stat(cur);
-        if (fileStat.size > largest.size) {
-          largest = { size: fileStat.size, name: cur };
+    data.fileSystemPictures.clear();
+    await dirsToPics.forEachAwaitable(async (setOfFiles, dirName) => {
+      const songs = dirsToSongs.get(dirName);
+      if (songs) {
+        let largest: SizeAndName = { size: 0, name: '' };
+        for (const cur of setOfFiles) {
+          const fileStat = await fsp.stat(cur);
+          if (fileStat.size > largest.size) {
+            largest = { size: fileStat.size, name: cur };
+          }
         }
+        // Now, for each file, set it's cover to the largest file
+        songs.forEach((song) =>
+          data.fileSystemPictures.set(song, largest.name),
+        );
       }
-      for (const album of albums) {
-        data.dbPictures.set(album.key, largest.name);
-      }
-    }
-    */
-    // Metadata-hosted album covers are only acquired "on demand"
+    });
   }
 
   return res;

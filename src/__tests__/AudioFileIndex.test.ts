@@ -16,21 +16,22 @@ export async function removeDir(name: string) {
 }
 
 async function cleanup() {
-  await remove('src/__tests__/audiofileindex/.emp/fileIndex.txt');
-  await remove('src/__tests__/audiofileindex/.emp/metadataCache.json');
-  await remove('src/__tests__/audiofileindex/.emp/metadataOverride.json');
-  await removeDir('src/__tests__/audiofileindex/.emp');
+  await removeDir('src/__tests__/audiofileindex/.afi');
 }
 
-beforeAll(cleanup);
 afterAll(cleanup);
 
 it('Some basic AudioFileIndex tests', async () => {
+  const beforeCreation = new Date();
   const afi = await MakeAudioFileIndex(
     'src/__tests__/audiofileindex',
     0x1badcafe,
   );
+  const scanTime = afi.getLastScanTime();
+  const afterCreation = new Date();
   expect(afi).toBeDefined();
+  // expect(scanTime).toBeTruthy();
+  // if (scanTime === null) throw Error('Scan time messed up');
   let count = 0;
   afi.forEachAudioFileSync((pn) => {
     count++;
