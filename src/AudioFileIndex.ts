@@ -1,5 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import {
+  FromU8,
   MakeError,
   MakeLogger,
   MaybeWait,
@@ -9,31 +10,26 @@ import {
 } from '@freik/core-utils';
 import {
   FullMetadata,
+  isSongKey,
   MediaKey,
   SimpleMetadata,
   SongKey,
 } from '@freik/media-core';
-import { Metadata } from '@freik/media-utils';
+import { Covers, Metadata } from '@freik/media-utils';
 import {
   MakePersistence,
   MakeSuffixWatcher,
   PathUtil,
-  Persist,
 } from '@freik/node-utils';
 import { hideFile } from '@freik/node-utils/lib/file';
-import {
-  FileIndex,
-  MakeFileIndex,
-  pathCompare,
-} from '@freik/node-utils/lib/FileIndex';
+import { MakeFileIndex, pathCompare } from '@freik/node-utils/lib/FileIndex';
 import { constants as FS_CONST, promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
-import { BlobStore, MakeBlobStore } from './BlobStore';
+import { MakeBlobStore } from './BlobStore';
 import {
   GetMetadataStore,
   IsFullMetadata,
-  MetadataStore,
   MinimumMetadata,
 } from './DbMetadata';
 
@@ -64,12 +60,18 @@ export type AudioFileIndex = {
   ): Promise<void>;
   updateMetadata(newMetadata: MinimumMetadata): void;
   getMetadataForSong(filePath: string): Promise<FullMetadata | void>;
+  setImageForSong(filePath: string, buf: Buffer): Promise<void>;
+  getImageForSong(
+    filePath: string,
+    preferInternal?: boolean,
+  ): Promise<Buffer | void>;
   destroy(): void;
 };
 
+// Helpers for the file list stuff
 const audioTypes = MakeSuffixWatcher('flac', 'mp3', 'aac', 'm4a');
+// Any other image types to care about?
 const imageTypes = MakeSuffixWatcher('png', 'jpg', 'jpeg', 'heic', 'hei');
-
 function watchTypes(pathName: string) {
   return (
     imageTypes(pathName) ||
@@ -77,7 +79,7 @@ function watchTypes(pathName: string) {
   );
 }
 
-async function isWritableDir(pathName: string) {
+async function isWritableDir(pathName: string): Promise<boolean> {
   try {
     await fsp.access(pathName, FS_CONST.W_OK);
     const s = await fsp.stat(pathName);
@@ -181,21 +183,10 @@ async function maybeCallAndAdd(
   }
 }
 
-type PrivateAudioFileIndexData = {
-  songList: string[];
-  picList: string[];
-  lastScanTime: Date | null;
-  location: string;
-  indexHashString: string;
-  persist: Persist;
-  fileIndex: FileIndex;
-  metadataCache: MetadataStore;
-  metadataOverride: MetadataStore;
-  pictures: BlobStore<SongKey>;
-  existingSongKeys: Map<number, string>;
-  // TODO: Add an album cover storage location, too!
-};
-
+// The constructor for an AudioFileIndex
+// It takes a file location name, a "hash" for that location (ideally, on that's
+// stable *across operatings systems!* and a potential location for where to
+// store metadata & whatnot if the file system is read-only
 export async function MakeAudioFileIndex(
   locationName: string,
   fragmentHash: number,
@@ -228,10 +219,10 @@ export async function MakeAudioFileIndex(
       throw new Error(`Non-writable location: ${locationName}`);
     }
   })();
-  const data: PrivateAudioFileIndexData = {
-    songList: [],
-    picList: [],
-    lastScanTime: null,
+  const data = {
+    songList: ((): string[] => [])(), // IIFE's instead of a full type
+    picList: ((): string[] => [])(), // Same here
+    lastScanTime: ((): Date | null => null)(), // And here :)
     location: _location,
     indexHashString: '',
     persist: _persist,
@@ -264,6 +255,8 @@ export async function MakeAudioFileIndex(
     rescanFiles,
     updateMetadata,
     getMetadataForSong,
+    getImageForSong,
+    setImageForSong,
     destroy: () => delIndex(res),
   };
   data.indexHashString = addIndex(fragmentHash, data.location, res);
@@ -290,12 +283,61 @@ export async function MakeAudioFileIndex(
     }
   }
 
+  // Pull out a relative path that we can use as an OS agnostic locater
   function getRelativePath(songPath: string): string {
     const absPath = path.resolve(songPath);
     if (!absPath.startsWith(data.location)) {
       throw Error(`Invalid prefix ${data.location} for songPath ${absPath}`);
     }
     return absPath.substr(data.location.length);
+  }
+
+  // From a (possibly) relative path, get something we can read data from
+  function getFullPath(relPath: string): string {
+    return path.isAbsolute(relPath)
+      ? path.resolve(relPath)
+      : path.resolve(path.join(data.location, relPath));
+  }
+
+  // This will return the AFI hash and the songkey hash,
+  // or false if the thing isn't a songkey
+  function getAFIKey(keyorpath: string): [number, number] | false {
+    try {
+      if (keyorpath[0] === 'S') {
+        const split = keyorpath.indexOf(':');
+        if (split > 1) {
+          // If we've made it this far, the exception path is fine; odds are
+          // it's a song key, so it's not likely to raise an exception
+          // Windows paths won't match, because we're not allowing a colon
+          // at index 1: It has to be greater than index 1
+          const indexNum = FromU8(keyorpath.substring(1, split));
+          const keyNum = FromU8(keyorpath.substring(split + 1));
+          return [indexNum, keyNum];
+        }
+      }
+    } catch (e) {} // eslint-disable-line no-empty
+    return false;
+  }
+
+  // Given either a key or a path, this returns a full path
+  function pathFromKeyOrPath(keyorpath: string): string {
+    // First, pull out the number from the key
+    if (isSongKey(keyorpath)) {
+      const keyData = getAFIKey(keyorpath);
+      if (
+        keyData !== false &&
+        ToU8(keyData[0]) === data.indexHashString &&
+        data.existingSongKeys.has(keyData[1])
+      ) {
+        const relPath = data.existingSongKeys.get(keyData[1]);
+        if (relPath) {
+          return getFullPath(relPath);
+        }
+      }
+    }
+    // If this doesn't throw an exception, we're golden
+    makeSongKey(keyorpath);
+    return getFullPath(keyorpath);
   }
 
   // This *should* be pretty stable, with the rare exceptions of hash collisions
@@ -365,7 +407,7 @@ export async function MakeAudioFileIndex(
     const mdOverride = data.metadataOverride.get(relPath);
     const littlemd: SimpleMetadata | void = Metadata.FromPath(relPath);
     if (littlemd) {
-      const fullPath = path.resolve(path.join(data.location, relPath));
+      const fullPath = getFullPath(relPath);
       const pathMd = Metadata.FullFromObj(fullPath, littlemd as any);
       const md = { ...pathMd, ...mdOverride, originalPath: fullPath };
 
@@ -406,6 +448,51 @@ export async function MakeAudioFileIndex(
       ...newMetadata,
       originalPath: relName,
     });
+  }
+
+  // public
+  async function setImageForSong(
+    keyOrPath: SongKey | string,
+    buf: Buffer,
+  ): Promise<void> {
+    const key = getAFIKey(keyOrPath) ? keyOrPath : makeSongKey(keyOrPath);
+    await data.pictures.put(buf, key);
+  }
+
+  // public
+  async function getImageForSong(
+    keyOrPath: SongKey | string,
+    preferInternal?: boolean,
+  ): Promise<Buffer | void> {
+    const key = getAFIKey(keyOrPath) ? keyOrPath : makeSongKey(keyOrPath);
+    // first check the blob-store
+    const maybe = await data.pictures.get(key);
+    if (maybe) {
+      return maybe;
+    }
+
+    // Next, check the song or the album
+    if (preferInternal) {
+      // TODO: Continue
+    }
+    // First, pull out the number from the key
+    const localPiece = key.substr(key.indexOf(':') + 1);
+    const val = FromU8(localPiece);
+    // Look up the relative path
+    const relName = data.existingSongKeys.get(val);
+    if (relName) {
+      const fullpath = getFullPath(relName);
+      // TODO: Maybe keep track of which files we've already ready from, so we
+      // can skip this step in the future, yes?
+      // Or instead leave this up to the AFI consumer to implement?
+      const maybeData = await Covers.ReadFromFile(fullpath);
+      if (maybeData) {
+        const buffer = Buffer.from(maybeData.data, 'base64');
+        // TODO: Save this outside the file, right?
+        return buffer;
+      }
+      // We didn't find anything in the file, time to look in the folder
+    }
   }
 
   /* async */ function handleAlbumCovers() {

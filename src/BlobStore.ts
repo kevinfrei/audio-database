@@ -15,6 +15,7 @@ export type BlobStore<T> = {
   clear(): Promise<void>;
 };
 
+// TODO: Add testing!
 export async function MakeBlobStore<T>(
   keyLookup: (key: T) => Promise<string> | string,
   storeLocation: string,
