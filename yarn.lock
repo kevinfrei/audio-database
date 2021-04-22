@@ -473,10 +473,10 @@
   resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.17.0.tgz#b1009e1a626f48ad60bc13cbec26bb496335a2d4"
   integrity sha512-rse4sBxgRbnGBlPek5oHK/743R6EcFKSHzLYctjluRVjjKE+3WaeEt1KOw5d/r8cmX4VOdToZTEIkBkRzLZk8Q==
 
-"@freik/core-utils@^0.18.1":
-  version "0.18.1"
-  resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.18.1.tgz#f61fd53dcec30f42adafd84ce886dfd0c2cc8a70"
-  integrity sha512-RUUXnLqaqOA2Ms3Lti2SeUDn/MX2BJdqlROrpjp03Qp3mBZdzh4OWDP2NqUVToq7jOhQfSczpKAUHE844LHgFg==
+"@freik/core-utils@^0.18.2":
+  version "0.18.2"
+  resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.18.2.tgz#bb18ef391148109f1b92de0a3c1d4d0b7150d050"
+  integrity sha512-21B2Rq1hql8IYaQjGqexFS5aTYs+reDEcflWEI6Vpw9cknobsV7wShwL0hBdwhKjSn7aeNLfbox7PbS/7n6wCw==
 
 "@freik/media-core@^0.4.1":
   version "0.4.1"
@@ -1406,13 +1406,13 @@ browser-process-hrtime@^1.0.0:
   integrity sha512-9o5UecI3GhkpM6DrXr69PblIuWxPKk9Y0jHBRhdocZ2y7YECBFCsHm79Pr3OyR2AvjhDkabFJaDJMYRazHgsow==
 
 browserslist@^4.14.5:
-  version "4.16.4"
-  resolved "https://registry.yarnpkg.com/browserslist/-/browserslist-4.16.4.tgz#7ebf913487f40caf4637b892b268069951c35d58"
-  integrity sha512-d7rCxYV8I9kj41RH8UKYnvDYCRENUlHRgyXy/Rhr/1BaeLGfiCptEdFE8MIrvGfWbBFNjVYx76SQWvNX1j+/cQ==
+  version "4.16.5"
+  resolved "https://registry.yarnpkg.com/browserslist/-/browserslist-4.16.5.tgz#952825440bca8913c62d0021334cbe928ef062ae"
+  integrity sha512-C2HAjrM1AI/djrpAUU/tr4pml1DqLIzJKSLDBXBrNErl9ZCCTXdhwxdJjYc16953+mBWf7Lw+uUJgpgb8cN71A==
   dependencies:
-    caniuse-lite "^1.0.30001208"
+    caniuse-lite "^1.0.30001214"
     colorette "^1.2.2"
-    electron-to-chromium "^1.3.712"
+    electron-to-chromium "^1.3.719"
     escalade "^3.1.1"
     node-releases "^1.1.71"
 
@@ -1478,7 +1478,7 @@ camelcase@^6.0.0:
   resolved "https://registry.yarnpkg.com/camelcase/-/camelcase-6.2.0.tgz#924af881c9d525ac9d87f40d964e5cea982a1809"
   integrity sha512-c7wVvbw3f37nuobQNtgsgG9POC9qMbNuMQmTCqZv23b6MIz0fcYpBiOlv9gEN/hdLdnZTDQhg6e9Dq5M1vKvfg==
 
-caniuse-lite@^1.0.30001208:
+caniuse-lite@^1.0.30001214:
   version "1.0.30001214"
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001214.tgz#70f153c78223515c6d37a9fde6cd69250da9d872"
   integrity sha512-O2/SCpuaU3eASWVaesQirZv1MSjUNOvmugaD8zNSJqw6Vv5SGwoOpA9LJs3pNPfM745nxqPvfZY3MQKY4AKHYg==
@@ -1953,7 +1953,7 @@ ejs@^3.1.5:
   dependencies:
     jake "^10.6.1"
 
-electron-to-chromium@^1.3.712:
+electron-to-chromium@^1.3.719:
   version "1.3.719"
   resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.719.tgz#87166fee347a46a2557f19aadb40a1d68241e61c"
   integrity sha512-heM78GKSqrIzO9Oz0/y22nTBN7bqSP1Pla2SyU9DiSnQD+Ea9SyyN5RWWlgqsqeBLNDkSlE9J9EHFmdMPzxB/g==
@@ -4516,9 +4516,9 @@ postcss@^7.0.1:
     supports-color "^6.1.0"
 
 postcss@^8.2.8:
-  version "8.2.10"
-  resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.2.10.tgz#ca7a042aa8aff494b334d0ff3e9e77079f6f702b"
-  integrity sha512-b/h7CPV7QEdrqIxtAf2j31U5ef05uBDuvoXv6L51Q4rcS1jdlXAVKJv+atCFdUXYl9dyTHGyoMzIepwowRJjFw==
+  version "8.2.12"
+  resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.2.12.tgz#81248a1a87e0f575cc594a99a08207fd1c4addc4"
+  integrity sha512-BJnGT5+0q2tzvs6oQfnY2NpEJ7rIXNfBnZtQOKCIsweeWXBXeDd5k31UgTdS3d/c02ouspufn37mTaHWkJyzMQ==
   dependencies:
     colorette "^1.2.2"
     nanoid "^3.1.22"

@@ -1,18 +1,15 @@
 import {
   FTON,
+  Helpers,
   MakeError,
   MakeLogger,
+  MakeMultiMap,
   MakeSingleWaiter,
+  MultiMap,
   Operations,
   SeqNum,
   Type,
 } from '@freik/core-utils';
-import {
-  NoArticlesNormalizedStringCompare,
-  NormalizeText,
-  StripInitialArticles,
-} from '@freik/core-utils/lib/Helpers';
-import { SetIntersection } from '@freik/core-utils/lib/Operations';
 import {
   Album,
   AlbumKey,
@@ -73,7 +70,7 @@ export type AudioDatabase = {
 };
 
 function normalizeName(n: string): string {
-  return NormalizeText(StripInitialArticles(n));
+  return Helpers.NormalizeText(Helpers.StripInitialArticles(n));
 }
 
 type PrivateAudioData = {
@@ -82,7 +79,7 @@ type PrivateAudioData = {
   dbAlbums: Map<AlbumKey, Album>;
   dbArtists: Map<ArtistKey, Artist>;
   dbPictures: Map<MediaKey, string>;
-  albumTitleIndex: Map<string, AlbumKey[]>;
+  albumTitleIndex: MultiMap<string, AlbumKey>;
   artistNameIndex: Map<string, ArtistKey>;
   keywordIndex: MusicSearch | null;
 };
@@ -102,7 +99,7 @@ export async function MakeAudioDatabase(
     dbAlbums: new Map<AlbumKey, Album>(),
     dbArtists: new Map<ArtistKey, Artist>(),
     dbPictures: new Map<MediaKey, string>(),
-    albumTitleIndex: new Map<string, AlbumKey[]>(),
+    albumTitleIndex: MakeMultiMap<string, AlbumKey>(),
     artistNameIndex: new Map<string, ArtistKey>(),
     keywordIndex: null,
   };
@@ -164,14 +161,8 @@ export async function MakeAudioDatabase(
     vatype: VAType,
     dirName: string,
   ): Album {
-    const maybeSharedNames = data.albumTitleIndex.get(normalizeName(title));
-    let sharedNames: AlbumKey[];
-    if (!maybeSharedNames) {
-      sharedNames = [];
-      data.albumTitleIndex.set(normalizeName(title), sharedNames);
-    } else {
-      sharedNames = maybeSharedNames;
-    }
+    const sharedNames =
+      data.albumTitleIndex.get(normalizeName(title)) || new Set<AlbumKey>();
     // sharedNames is the list of existing albums with this title
     // It might be empty (coming from a few lines up there ^^^ )
     for (const albumKey of sharedNames) {
@@ -184,7 +175,7 @@ export async function MakeAudioDatabase(
         continue;
       }
       const check: Album = alb;
-      if (NoArticlesNormalizedStringCompare(check.title, title) !== 0) {
+      if (Helpers.NoArticlesNormalizedStringCompare(check.title, title) !== 0) {
         err(`DB inconsistency - album title index inconsistency`);
         continue;
       }
@@ -292,7 +283,7 @@ export async function MakeAudioDatabase(
       songs: [],
       key,
     };
-    sharedNames.push(key);
+    data.albumTitleIndex.set(normalizeName(title), key);
     data.dbAlbums.set(key, album);
     return album;
   }
@@ -370,13 +361,7 @@ export async function MakeAudioDatabase(
           if (nameElem === undefined) {
             err(`Unable to find ${theAlbum.title} in the title index`);
           } else {
-            const elemNum = nameElem.indexOf(theAlbum.key);
-            if (elemNum >= 0) {
-              nameElem.splice(elemNum, 1);
-              if (nameElem.length === 0) {
-                data.albumTitleIndex.delete(normalizeName(theAlbum.title));
-              }
-            }
+            data.albumTitleIndex.remove(normalizeName(theAlbum));
           }
         }
       } else {
@@ -494,9 +479,15 @@ export async function MakeAudioDatabase(
         const sng = data.keywordIndex.songs(t, substr);
         const alb = data.keywordIndex.albums(t, substr);
         const art = data.keywordIndex.artists(t, substr);
-        songs = first ? new Set<string>(sng) : SetIntersection(songs, sng);
-        albums = first ? new Set<string>(alb) : SetIntersection(albums, alb);
-        artists = first ? new Set<string>(art) : SetIntersection(artists, art);
+        songs = first
+          ? new Set<string>(sng)
+          : Operations.SetIntersection(songs, sng);
+        albums = first
+          ? new Set<string>(alb)
+          : Operations.SetIntersection(albums, alb);
+        artists = first
+          ? new Set<string>(art)
+          : Operations.SetIntersection(artists, art);
         first = false;
       }
     }
