@@ -468,24 +468,19 @@
   resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.10.0.tgz#8c483b4bf8dce369977748bef4fac03e0630e9d6"
   integrity sha512-mMkgPDADuqNhaU37hmyh2iiadaevg2nR8GN1EJXzA6mUz5XSbZ/ZzvnHmdU3oUDE16o37RPv37uhDVO1rM66sw==
 
-"@freik/core-utils@^0.16.0":
-  version "0.16.0"
-  resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.16.0.tgz#c937150e6b419cc1c306fec62cbd4d51a11eb383"
-  integrity sha512-YBz203X+S0VcvryMyeZcBjwvOrj999Q5qZw5L+BuawuLelo/Pc4hOcQMcEQJYKWVXjszvRUjTqHMBr891xpHqQ==
-
 "@freik/core-utils@^0.17.0":
   version "0.17.0"
   resolved "https://registry.yarnpkg.com/@freik/core-utils/-/core-utils-0.17.0.tgz#b1009e1a626f48ad60bc13cbec26bb496335a2d4"
   integrity sha512-rse4sBxgRbnGBlPek5oHK/743R6EcFKSHzLYctjluRVjjKE+3WaeEt1KOw5d/r8cmX4VOdToZTEIkBkRzLZk8Q==
 
-"@freik/media-core@^0.4.0", "@freik/media-core@^0.4.1":
+"@freik/media-core@^0.4.1":
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/@freik/media-core/-/media-core-0.4.1.tgz#b0fd7cba87e2a3d1f1eb9f4e63cc36b3fc1935a9"
   integrity sha512-vCKP+WhIA9e8JOxL7KkNAjt1AttGLQ7Cm6/LDZ5c2Bk1YE6DkXmZ9lj8zaM0qdjxMxtS5lnPyGpcB9C9s0XZKA==
   dependencies:
     "@freik/core-utils" "^0.17.0"
 
-"@freik/media-utils@^0.10.2":
+"@freik/media-utils@^0.10.4":
   version "0.10.4"
   resolved "https://registry.yarnpkg.com/@freik/media-utils/-/media-utils-0.10.4.tgz#c8be0072e74079731b973d79d53caad8e9d64c78"
   integrity sha512-F+Ez4HGjiPVWUyeliT7eks9pL61/vQ0TqcJXpIjdwm+snCt910Tl1ARHgL2tGG9Fvq7AmXIU0c8aIKsVxFBQ/g==
@@ -494,13 +489,6 @@
     "@freik/media-core" "^0.4.1"
     "@freik/node-utils" "^0.13.0"
     music-metadata "^7.8.4"
-
-"@freik/node-utils@^0.11.1":
-  version "0.11.1"
-  resolved "https://registry.yarnpkg.com/@freik/node-utils/-/node-utils-0.11.1.tgz#482b5e57e5d2fe187498d92aca28ce590d82b31b"
-  integrity sha512-V5jVsF3HnFGIyKefI8ntSxWEZzhY5jZXkTVh1NmOfWUGFZncEOFfBpR5t590SHmBWgeDMH5W1rgzxFbAn54UbQ==
-  dependencies:
-    "@freik/core-utils" "^0.16.0"
 
 "@freik/node-utils@^0.13.0":
   version "0.13.0"
