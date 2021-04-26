@@ -156,13 +156,13 @@ function delIndex(index: AudioFileIndex) {
         err(`Index and location are mismatched for ${loc}`);
       }
       lengthSortedPaths.splice(i, 1);
-      return;
+      break;
     }
   }
   // Clear it from the map
   // We don't delete it for consistent hashing? I haven't though through
-  // collisions very well
-  indexKeyLookup.set(index.getHash(), null);
+  // collisions very well :/
+  indexKeyLookup.delete(index.getHash());
 }
 
 // Helper for the file watcher stuff
@@ -265,7 +265,7 @@ export async function MakeAudioFileIndex(
     }
   });
   await handleAlbumCovers();
-
+  data.lastScanTime = new Date();
   // public
   async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
     for (const song of data.songList) {
