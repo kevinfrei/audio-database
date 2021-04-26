@@ -361,7 +361,7 @@ export async function MakeAudioDatabase(
           if (nameElem === undefined) {
             err(`Unable to find ${theAlbum.title} in the title index`);
           } else {
-            data.albumTitleIndex.remove(normalizeName(theAlbum));
+            data.albumTitleIndex.remove(normalizeName(theAlbum), theAlbum.key);
           }
         }
       } else {
