@@ -1,5 +1,4 @@
 import {
-  FTON,
   Helpers,
   MakeError,
   MakeLogger,
@@ -7,8 +6,10 @@ import {
   MakeSingleWaiter,
   MultiMap,
   Operations,
+  Pickle,
   SeqNum,
   Type,
+  Unpickle,
 } from '@freik/core-utils';
 import {
   Album,
@@ -361,7 +362,10 @@ export async function MakeAudioDatabase(
           if (nameElem === undefined) {
             err(`Unable to find ${theAlbum.title} in the title index`);
           } else {
-            data.albumTitleIndex.remove(normalizeName(theAlbum), theAlbum.key);
+            data.albumTitleIndex.remove(
+              normalizeName(theAlbum.title),
+              theAlbum.key,
+            );
           }
         }
       } else {
@@ -534,7 +538,7 @@ export async function MakeAudioDatabase(
 
   async function load(filename: string): Promise<boolean> {
     const stringVal = await persist.getItemAsync(filename);
-    const flattened = FTON.parse(stringVal || '0');
+    const flattened = Unpickle(stringVal || '0');
     if (
       !flattened ||
       !Type.has(flattened, 'dbSongs') ||
@@ -552,7 +556,7 @@ export async function MakeAudioDatabase(
     const albums = flattened.dbAlbums as Map<AlbumKey, Album>;
     const artists = flattened.dbArtists as Map<ArtistKey, Artist>;
     const pictures = flattened.dbPictures as Map<MediaKey, string>;
-    const titleIndex = flattened.albumTitleIndex as Map<string, AlbumKey[]>;
+    const titleIndex = flattened.albumTitleIndex as MultiMap<string, AlbumKey>;
     const nameIndex = flattened.artistNameIndex as Map<string, ArtistKey>;
     const idx = flattened.indices as { location: string; hash: number }[];
     const audioIndices = await Promise.all(
@@ -573,7 +577,7 @@ export async function MakeAudioDatabase(
     // clients to remember to do this..
     await persist.setItemAsync(
       filename,
-      FTON.stringify({
+      Pickle({
         dbSongs: data.dbSongs,
         dbAlbums: data.dbAlbums,
         dbArtists: data.dbArtists,
@@ -609,7 +613,7 @@ export async function MakeAudioDatabase(
   // Get the list of existing paths to song-keys
   const maybeSongHash = await persist.getItemAsync('songHashIndex');
   if (maybeSongHash) {
-    const songHash = FTON.parse(maybeSongHash);
+    const songHash = Unpickle(maybeSongHash);
     if (Type.isMapOfStrings(songHash)) {
       existingKeys = songHash;
     }

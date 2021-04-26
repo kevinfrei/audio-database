@@ -1,11 +1,11 @@
 import {
-  FTON,
-  FTONData,
   MakeError,
   MakeLogger,
   ObjUtil,
   Operations,
+  Pickle,
   Type,
+  Unpickle,
 } from '@freik/core-utils';
 import { Attributes, FullMetadata } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
@@ -230,11 +230,11 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
     }
     log('Saving store back to disk');
     const valueToSave = {
-      store: [...store.values()] as FTONData,
+      store: [...store.values()] as unknown,
       fails: [...stopTrying],
     };
     dirty = false;
-    await persist.setItemAsync(name, FTON.stringify(valueToSave));
+    await persist.setItemAsync(name, Pickle(valueToSave));
   }
   async function load() {
     if (loaded) {
@@ -252,7 +252,7 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
     }
     let valuesToRestore;
     try {
-      valuesToRestore = FTON.parse(fromFile);
+      valuesToRestore = Unpickle(fromFile);
     } catch (e) {
       err(`Invalid file format for MDS '${name}'`);
       return false;
@@ -277,7 +277,7 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
       if (IsOnlyMetadata(val)) {
         store.set(val.originalPath, val);
       } else {
-        log(`MDS: failure for ${FTON.stringify(val as FTONData)}`);
+        log(`MDS: failure for ${Pickle(val)}`);
         okay = false;
       }
     });

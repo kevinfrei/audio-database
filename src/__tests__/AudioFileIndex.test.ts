@@ -11,7 +11,7 @@ export async function remove(name: string) {
 
 export async function removeDir(name: string) {
   try {
-    await fsp.rmdir(name, { recursive: true });
+    await fsp.rm(name, { recursive: true });
   } catch (e) {}
 }
 
