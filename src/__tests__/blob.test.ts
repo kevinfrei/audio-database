@@ -34,4 +34,12 @@ it('Restore a BlobStore test', async () => {
   const newBuf = await blobs.get('theKey');
   expect(newBuf).toBeDefined();
   expect(buf.toString()).toEqual((newBuf as Buffer).toString());
+  const buf2 = Buffer.from('abcd');
+  await blobs.put(buf2, 'anotherKey');
+  const newBuf2 = await blobs.get('anotherKey');
+  const oldBuf2 = await blobs.get('theKey');
+  expect(newBuf2).toBeDefined();
+  expect(oldBuf2).toBeDefined();
+  if (!newBuf2 || !oldBuf2) throw new Error('badness');
+  expect(newBuf2.toString() === oldBuf2.toString()).toBeFalsy();
 });
