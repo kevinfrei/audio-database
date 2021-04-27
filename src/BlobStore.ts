@@ -21,7 +21,7 @@ export async function MakeBlobStore<T>(
   storeLocation: string,
 ): Promise<BlobStore<T>> {
   // The directory of the blob store
-  const blobStoreDir = PathUtil.trailingSlash(storeLocation);
+  const blobStoreDir = PathUtil.trailingSlash(path.resolve(storeLocation));
   // The index of string-keys to blob files
   const blobIndex = path.join(blobStoreDir, 'index.txt');
   // We're using Sequence Numbers for blob names
@@ -35,25 +35,21 @@ export async function MakeBlobStore<T>(
 
   try {
     const index = await FileUtil.textFileToArrayAsync(blobIndex);
-    sn = SeqNum('blob-', index[0]);
+    sn = SeqNum('BLOB-', index[0]);
     const mapVal: [string, string][] = [];
     for (let i = 1; i < index.length; i += 2) {
       mapVal.push([index[i], index[i + 1]]);
     }
     theMap = new Map(mapVal);
   } catch (e) {
-    sn = SeqNum('blob-');
+    sn = SeqNum('BLOB-');
     theMap = new Map<string, string>();
   }
 
   // Save the index file back to disk
   async function saveIndex(lastSeqNum: string): Promise<void> {
     // TODO: Debounce this
-    const data = [lastSeqNum];
-    for (const [key, name] of theMap) {
-      data.push(key);
-      data.push(name);
-    }
+    const data = [lastSeqNum, ...theMap].flat();
     await FileUtil.arrayToTextFileAsync(data, blobIndex);
   }
 
@@ -76,7 +72,7 @@ export async function MakeBlobStore<T>(
     const thePath = getPath(filename);
     await fs.writeFile(thePath, data);
     for (const key of keys) {
-      theMap.set(await MaybeWait(() => keyLookup(key)), filename);
+      theMap.set(await MaybeWait(() => keyLookup(key)), thePath);
     }
     await saveIndex(filename);
   }
