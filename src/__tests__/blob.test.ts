@@ -3,6 +3,11 @@ import path from 'path';
 import { MakeBlobStore } from '../BlobStore';
 
 beforeAll(async () => {
+  try {
+    await fsp.rm(path.resolve('src/__tests__/blob-test'), {
+      recursive: true,
+    });
+  } catch (e) {}
   await fsp.mkdir(path.resolve('src/__tests__/blob-test'));
 });
 
@@ -11,7 +16,8 @@ afterAll(async () => {
 });
 
 const aString = 'asdflakjsdflaksdjf';
-it('BlobStore test', async () => {
+
+test('BlobStore test', async () => {
   const blobs = await MakeBlobStore(
     (key: string) => key,
     'src/__tests__/blob-test',
@@ -24,7 +30,7 @@ it('BlobStore test', async () => {
   expect(buf.toString()).toEqual((newBuf as Buffer).toString());
 });
 
-it('Restore a BlobStore test', async () => {
+test('Restore a BlobStore test', async () => {
   const blobs = await MakeBlobStore(
     (k: string) => k,
     'src/__tests__/blob-test',
@@ -42,4 +48,19 @@ it('Restore a BlobStore test', async () => {
   expect(oldBuf2).toBeDefined();
   if (!newBuf2 || !oldBuf2) throw new Error('badness');
   expect(newBuf2.toString() === oldBuf2.toString()).toBeFalsy();
+  await blobs.putMany(buf2, ['ab', 'bc', 'de', 'ef']);
+  const ab = await blobs.get('ab');
+  const bc = await blobs.get('bc');
+  const de = await blobs.get('de');
+  expect(ab).toBeDefined();
+  expect(bc).toBeDefined();
+  expect(de).toBeDefined();
+  if (!ab || !bc || !de) throw new Error('More badness');
+  expect(ab.toString()).toEqual(bc.toString());
+  expect(bc.toString()).toEqual(de.toString());
+  await blobs.delete('ab');
+  expect(await blobs.get('ab')).toBeUndefined();
+  expect(await blobs.get('bc')).toBeDefined();
+  await blobs.delete(['bc', 'de']);
+  expect(await blobs.get('de')).toBeUndefined();
 });

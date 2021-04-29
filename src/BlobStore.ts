@@ -1,8 +1,10 @@
 import {
+  MakeMultiMap,
   MaybeWait,
   SeqNum,
   SeqNumGenerator,
   ToPathSafeName,
+  Type,
 } from '@freik/core-utils';
 import { FileUtil, PathUtil } from '@freik/node-utils';
 import { promises as fs } from 'fs';
@@ -12,6 +14,7 @@ export type BlobStore<T> = {
   get(key: T): Promise<Buffer | void>;
   put(data: Buffer, key: T): Promise<void>;
   putMany(data: Buffer, key: Iterable<T>): Promise<void>;
+  delete(key: T | T[]): Promise<void>;
   clear(): Promise<void>;
 };
 
@@ -31,35 +34,40 @@ export async function MakeBlobStore<T>(
   }
   let sn: SeqNumGenerator;
   // hash key to filename lookup
-  let theMap: Map<string, string>;
+  const keyToPath = new Map<string, string>();
+  const pathToKeys = MakeMultiMap<string, string>();
+
+  async function xlate(key: T): Promise<string> {
+    return await MaybeWait(() => keyLookup(key));
+  }
 
   try {
     const index = await FileUtil.textFileToArrayAsync(blobIndex);
     sn = SeqNum('BLOB-', index[0]);
-    const mapVal: [string, string][] = [];
     for (let i = 1; i < index.length; i += 2) {
-      mapVal.push([index[i], index[i + 1]]);
+      keyToPath.set(index[i], index[i + 1]);
+      pathToKeys.set(index[i + 1], index[i]);
     }
-    theMap = new Map(mapVal);
   } catch (e) {
     sn = SeqNum('BLOB-');
-    theMap = new Map<string, string>();
+    keyToPath.clear();
+    pathToKeys.clear();
   }
 
   // Save the index file back to disk
   async function saveIndex(lastSeqNum: string): Promise<void> {
     // TODO: Debounce this
-    const data = [lastSeqNum, ...theMap].flat();
+    const data = [lastSeqNum, ...keyToPath].flat();
     await FileUtil.arrayToTextFileAsync(data, blobIndex);
   }
 
   // Get the buffer from the disk store
   async function get(key: T): Promise<Buffer | void> {
     try {
-      const hashKey = await MaybeWait(() => keyLookup(key));
-      const filepath = theMap.get(hashKey);
+      const hashKey = await xlate(key);
+      const filepath = keyToPath.get(hashKey);
       if (filepath) {
-        return await fs.readFile(filepath);
+        return await fs.readFile(getPath(filepath));
       }
     } catch (e) {
       // No file found...
@@ -69,20 +77,38 @@ export async function MakeBlobStore<T>(
   // Put a buffer on disk, with a set of keys (allowing many to one references)
   async function putMany(data: Buffer, keys: Iterable<T>): Promise<void> {
     const filename = sn();
-    const thePath = getPath(filename);
-    await fs.writeFile(thePath, data);
+    await fs.writeFile(getPath(filename), data);
     for (const key of keys) {
-      theMap.set(await MaybeWait(() => keyLookup(key)), thePath);
+      const xlateKey = await xlate(key);
+      keyToPath.set(xlateKey, filename);
+      pathToKeys.set(filename, xlateKey);
     }
     await saveIndex(filename);
   }
 
   // Does what it says :D
   async function clear(): Promise<void> {
-    for (const [, file] of theMap) {
+    for (const [, file] of keyToPath) {
       await fs.rm(getPath(file));
     }
-    theMap.clear();
+    keyToPath.clear();
+    pathToKeys.clear();
+    await saveIndex(sn());
+  }
+
+  async function del(key: T | T[]): Promise<void> {
+    const keys = Type.isArray(key) ? key : [key];
+    for (const k of keys) {
+      const realKey = await xlate(k);
+      const filename = keyToPath.get(realKey);
+      if (filename) {
+        keyToPath.delete(realKey);
+        pathToKeys.remove(filename, realKey);
+        if (pathToKeys.get(filename) === undefined) {
+          await fs.rm(getPath(filename));
+        }
+      }
+    }
     await saveIndex(sn());
   }
 
@@ -92,6 +118,7 @@ export async function MakeBlobStore<T>(
     get,
     put: (data: Buffer, key: T): Promise<void> => putMany(data, [key]),
     putMany,
+    delete: del,
     clear,
   };
 }
