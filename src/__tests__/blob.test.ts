@@ -1,13 +1,9 @@
+import { Sleep } from '@freik/core-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeBlobStore } from '../BlobStore';
 
 beforeAll(async () => {
-  try {
-    await fsp.rm(path.resolve('src/__tests__/blob-test'), {
-      recursive: true,
-    });
-  } catch (e) {}
   await fsp.mkdir(path.resolve('src/__tests__/blob-test'));
 });
 
@@ -28,6 +24,8 @@ test('BlobStore test', async () => {
   const newBuf = await blobs.get('theKey');
   expect(newBuf).toBeDefined();
   expect(buf.toString()).toEqual((newBuf as Buffer).toString());
+  // This basically forces a flush
+  await Sleep(1000);
 });
 
 test('Restore a BlobStore test', async () => {

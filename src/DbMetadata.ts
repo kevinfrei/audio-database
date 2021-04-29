@@ -1,4 +1,5 @@
 import {
+  DebouncedDelay,
   MakeError,
   MakeLogger,
   ObjUtil,
@@ -89,7 +90,7 @@ export type MetadataStore = {
   set: (path: string, md: MinimumMetadata) => void;
   fail: (path: string) => void;
   shouldTry: (path: string) => boolean;
-  save: () => Promise<void>;
+  save: () => void;
   load: () => Promise<boolean>;
 };
 
@@ -222,12 +223,7 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
   function shouldTry(path: string) {
     return !stopTrying.has(path);
   }
-  async function save() {
-    // TODO: debounce this?
-    if (!dirty) {
-      log('Not saving: Store is not dirty');
-      return;
-    }
+  const saverDelay = DebouncedDelay(async () => {
     log('Saving store back to disk');
     const valueToSave = {
       store: [...store.values()] as unknown,
@@ -235,6 +231,14 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
     };
     dirty = false;
     await persist.setItemAsync(name, Pickle(valueToSave));
+  }, 250);
+  function save() {
+    // TODO: debounce this?
+    if (!dirty) {
+      log('Not saving: Store is not dirty');
+      return;
+    }
+    saverDelay();
   }
   async function load() {
     if (loaded) {

@@ -1,4 +1,5 @@
 import {
+  DebouncedDelay,
   MakeMultiMap,
   MaybeWait,
   SeqNum,
@@ -54,11 +55,17 @@ export async function MakeBlobStore<T>(
     pathToKeys.clear();
   }
 
-  // Save the index file back to disk
-  async function saveIndex(lastSeqNum: string): Promise<void> {
-    // TODO: Debounce this
-    const data = [lastSeqNum, ...keyToPath].flat();
+  let lastSeqNumSave = '';
+
+  const saver = DebouncedDelay(async () => {
+    const data = [lastSeqNumSave, ...keyToPath].flat();
     await FileUtil.arrayToTextFileAsync(data, blobIndex);
+  }, 250);
+
+  // Save the index file back to disk
+  function saveIndex(lastSeqNum: string) {
+    lastSeqNumSave = lastSeqNum;
+    saver();
   }
 
   // Get the buffer from the disk store
@@ -83,7 +90,7 @@ export async function MakeBlobStore<T>(
       keyToPath.set(xlateKey, filename);
       pathToKeys.set(filename, xlateKey);
     }
-    await saveIndex(filename);
+    saveIndex(filename);
   }
 
   // Does what it says :D
@@ -93,7 +100,7 @@ export async function MakeBlobStore<T>(
     }
     keyToPath.clear();
     pathToKeys.clear();
-    await saveIndex(sn());
+    saveIndex(sn());
   }
 
   async function del(key: T | T[]): Promise<void> {
@@ -109,7 +116,7 @@ export async function MakeBlobStore<T>(
         }
       }
     }
-    await saveIndex(sn());
+    saveIndex(sn());
   }
 
   // TODO: Add a 'deduplication' function? Hash the buffers or something?
