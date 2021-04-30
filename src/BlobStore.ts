@@ -57,15 +57,16 @@ export async function MakeBlobStore<T>(
 
   let lastSeqNumSave = '';
 
-  const saver = DebouncedDelay(async () => {
+  async function actuallySaveIndex() {
     const data = [lastSeqNumSave, ...keyToPath].flat();
     await FileUtil.arrayToTextFileAsync(data, blobIndex);
-  }, 250);
+  }
+  const saveIndexInTheFuture = DebouncedDelay(actuallySaveIndex, 250);
 
   // Save the index file back to disk
   function saveIndex(lastSeqNum: string) {
     lastSeqNumSave = lastSeqNum;
-    saver();
+    saveIndexInTheFuture();
   }
 
   // Get the buffer from the disk store
@@ -96,11 +97,13 @@ export async function MakeBlobStore<T>(
   // Does what it says :D
   async function clear(): Promise<void> {
     for (const [, file] of keyToPath) {
+      console.log(`Deleting ${getPath(file)}`);
       await fs.rm(getPath(file));
     }
     keyToPath.clear();
     pathToKeys.clear();
-    saveIndex(sn());
+    lastSeqNumSave = sn();
+    await actuallySaveIndex();
   }
 
   async function del(key: T | T[]): Promise<void> {

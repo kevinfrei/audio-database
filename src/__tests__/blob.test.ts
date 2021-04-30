@@ -62,3 +62,15 @@ test('Restore a BlobStore test', async () => {
   await blobs.delete(['bc', 'de']);
   expect(await blobs.get('de')).toBeUndefined();
 });
+
+test('Restore, then clear', async () => {
+  const blobs = await MakeBlobStore(
+    (k: string) => k,
+    'src/__tests__/blob-test',
+  );
+  await blobs.clear();
+  await Sleep(2000);
+  const files = await fsp.readdir(path.resolve('src/__tests__/blob-test'));
+  console.log(files);
+  expect(files.length).toEqual(1);
+});
