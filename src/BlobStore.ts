@@ -20,7 +20,6 @@ export type BlobStore<T> = {
   flush(): Promise<void>;
 };
 
-// TODO: Add testing!
 export async function MakeBlobStore<T>(
   keyLookup: (key: T) => Promise<string> | string,
   storeLocation: string,
@@ -124,7 +123,7 @@ export async function MakeBlobStore<T>(
   async function flush() {
     await saveIndexInTheFuture.trigger();
   }
-  // TODO: Add a 'deduplication' function? Hash the buffers or something?
+  // T0D0: Add a 'deduplication' function? Hash the buffers or something?
 
   return {
     get,

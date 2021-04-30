@@ -586,7 +586,7 @@ export async function MakeAudioDatabase(
         artistNameIndex: data.artistNameIndex,
         indices: data.dbAudioIndices.map((afi) => ({
           location: afi.getLocation(),
-          hash: afi.getHash(),
+          hash: afi.getHashForIndex(),
         })),
       }),
     );

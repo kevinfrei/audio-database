@@ -44,7 +44,7 @@ type PathHandlerBoth = (pathName: string) => Promise<void> | void;
 type PathHandlerEither = PathHandlerSync | PathHandlerAsync | PathHandlerBoth;
 
 export type AudioFileIndex = {
-  getHash(): string; // basic test
+  getHashForIndex(): string; // basic test
   getLocation(): string; // basic test
   makeSongKey(songPath: string): SongKey; // basic test
   forEachAudioFile(fn: PathHandlerEither): Promise<void>;
@@ -162,7 +162,7 @@ function delIndex(index: AudioFileIndex) {
   // Clear it from the map
   // We don't delete it for consistent hashing? I haven't though through
   // collisions very well :/
-  indexKeyLookup.delete(index.getHash());
+  indexKeyLookup.delete(index.getHashForIndex());
 }
 
 // Helper for the file watcher stuff
@@ -242,7 +242,7 @@ export async function MakeAudioFileIndex(
   // "this"
   const res: AudioFileIndex = {
     // Don't know if this is necessary
-    getHash: () => data.indexHashString,
+    getHashForIndex: () => data.indexHashString,
     getLocation: () => data.location,
     getLastScanTime: () => data.lastScanTime,
     makeSongKey,
@@ -448,8 +448,8 @@ export async function MakeAudioFileIndex(
   }
 
   async function loadCoverFromFile(fullPath: string): Promise<Buffer | void> {
-    // TODO: Maybe keep track of which files we've already ready from, so we
-    // can skip this step in the future, yes?
+    // TODO: Maybe keep track of which files we've already read from, so we can
+    // skip this step in the future, yes?
     // Or instead leave this up to the AFI consumer to implement?
     const maybeData = await Covers.ReadFromFile(fullPath);
     if (maybeData) {

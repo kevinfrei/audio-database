@@ -85,6 +85,7 @@ export async function getMediaInfo(
   return res;
 }
 
+// TODO: Test this stuff
 export type MetadataStore = {
   get: (path: string) => MinimumMetadata | void;
   set: (path: string, md: MinimumMetadata) => void;
@@ -233,7 +234,6 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
     await persist.setItemAsync(name, Pickle(valueToSave));
   }, 250);
   function save() {
-    // TODO: debounce this?
     if (!dirty) {
       log('Not saving: Store is not dirty');
       return;

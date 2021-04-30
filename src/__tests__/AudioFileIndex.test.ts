@@ -41,7 +41,7 @@ it('Some basic AudioFileIndex tests', async () => {
     count++;
   });
   expect(count).toEqual(6);
-  expect(afi.getHash()).toEqual(ToU8(0x1badcafe));
+  expect(afi.getHashForIndex()).toEqual(ToU8(0x1badcafe));
   expect(afi.getLocation()).toEqual(
     path.resolve('src/__tests__/audiofileindex') + '/',
   );
