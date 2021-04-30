@@ -1,7 +1,7 @@
 import {
-  DebouncedDelay,
   MakeMultiMap,
   MaybeWait,
+  OnlyOneActive,
   SeqNum,
   SeqNumGenerator,
   ToPathSafeName,
@@ -17,6 +17,7 @@ export type BlobStore<T> = {
   putMany(data: Buffer, key: Iterable<T>): Promise<void>;
   delete(key: T | T[]): Promise<void>;
   clear(): Promise<void>;
+  flush(): Promise<void>;
 };
 
 // TODO: Add testing!
@@ -57,16 +58,15 @@ export async function MakeBlobStore<T>(
 
   let lastSeqNumSave = '';
 
-  async function actuallySaveIndex() {
+  const saveIndexInTheFuture = OnlyOneActive(async () => {
     const data = [lastSeqNumSave, ...keyToPath].flat();
     await FileUtil.arrayToTextFileAsync(data, blobIndex);
-  }
-  const saveIndexInTheFuture = DebouncedDelay(actuallySaveIndex, 250);
+  }, 250);
 
   // Save the index file back to disk
   function saveIndex(lastSeqNum: string) {
     lastSeqNumSave = lastSeqNum;
-    saveIndexInTheFuture();
+    void saveIndexInTheFuture();
   }
 
   // Get the buffer from the disk store
@@ -97,13 +97,12 @@ export async function MakeBlobStore<T>(
   // Does what it says :D
   async function clear(): Promise<void> {
     for (const [, file] of keyToPath) {
-      console.log(`Deleting ${getPath(file)}`);
       await fs.rm(getPath(file));
     }
     keyToPath.clear();
     pathToKeys.clear();
     lastSeqNumSave = sn();
-    await actuallySaveIndex();
+    await saveIndexInTheFuture.trigger();
   }
 
   async function del(key: T | T[]): Promise<void> {
@@ -122,6 +121,9 @@ export async function MakeBlobStore<T>(
     saveIndex(sn());
   }
 
+  async function flush() {
+    await saveIndexInTheFuture.trigger();
+  }
   // TODO: Add a 'deduplication' function? Hash the buffers or something?
 
   return {
@@ -130,5 +132,6 @@ export async function MakeBlobStore<T>(
     putMany,
     delete: del,
     clear,
+    flush,
   };
 }

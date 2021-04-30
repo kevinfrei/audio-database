@@ -1,4 +1,3 @@
-import { Sleep } from '@freik/core-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeBlobStore } from '../BlobStore';
@@ -24,8 +23,7 @@ test('BlobStore test', async () => {
   const newBuf = await blobs.get('theKey');
   expect(newBuf).toBeDefined();
   expect(buf.toString()).toEqual((newBuf as Buffer).toString());
-  // This basically forces a flush
-  await Sleep(1000);
+  await blobs.flush();
 });
 
 test('Restore a BlobStore test', async () => {
@@ -61,6 +59,7 @@ test('Restore a BlobStore test', async () => {
   expect(await blobs.get('bc')).toBeDefined();
   await blobs.delete(['bc', 'de']);
   expect(await blobs.get('de')).toBeUndefined();
+  await blobs.flush(); // Flush to disk
 });
 
 test('Restore, then clear', async () => {
@@ -69,8 +68,7 @@ test('Restore, then clear', async () => {
     'src/__tests__/blob-test',
   );
   await blobs.clear();
-  await Sleep(2000);
+  await blobs.flush(); // Flush to disk
   const files = await fsp.readdir(path.resolve('src/__tests__/blob-test'));
-  console.log(files);
   expect(files.length).toEqual(1);
 });
