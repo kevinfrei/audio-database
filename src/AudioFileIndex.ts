@@ -514,10 +514,13 @@ export async function MakeAudioFileIndex(
       if (songs) {
         let largest: SizeAndName = { size: 0, name: '' };
         for (const cur of setOfFiles) {
-          const fileStat = await fsp.stat(cur);
-          if (fileStat.size > largest.size) {
-            largest = { size: fileStat.size, name: cur };
-          }
+          try {
+            const fileStat = await fsp.stat(cur);
+            if (fileStat.size > largest.size) {
+              largest = { size: fileStat.size, name: cur };
+            }
+            // eslint-disable-next-line no-empty
+          } catch (e) {}
         }
         // Now, for each file, set it's cover to the largest file
         songs.forEach((song) =>
