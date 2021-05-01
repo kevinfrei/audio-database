@@ -63,9 +63,9 @@ export async function MakeBlobStore<T>(
   }, 250);
 
   // Save the index file back to disk
-  function saveIndex(lastSeqNum: string) {
+  async function saveIndex(lastSeqNum: string) {
     lastSeqNumSave = lastSeqNum;
-    void saveIndexInTheFuture();
+    await saveIndexInTheFuture();
   }
 
   // Get the buffer from the disk store
@@ -90,7 +90,7 @@ export async function MakeBlobStore<T>(
       keyToPath.set(xlateKey, filename);
       pathToKeys.set(filename, xlateKey);
     }
-    saveIndex(filename);
+    await saveIndex(filename);
   }
 
   // Does what it says :D
@@ -117,7 +117,7 @@ export async function MakeBlobStore<T>(
         }
       }
     }
-    saveIndex(sn());
+    await saveIndex(sn());
   }
 
   async function flush() {

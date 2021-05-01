@@ -16,7 +16,7 @@ import { Persist } from '@freik/node-utils';
 const { RawMetadata, FromFileAsync } = Metadata;
 
 const log = MakeLogger('metadata');
-const err = MakeError('metadata-err');
+const err = MakeError('metadata-err', false);
 
 declare type NestedValue =
   | NestedObject
