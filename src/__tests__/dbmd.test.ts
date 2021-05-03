@@ -67,17 +67,17 @@ it('Generic getMediaInfo tests', async () => {
   expect(Type.isMap(mimp3)).toBeTruthy();
   expect(mimp3).toEqual(mp3Map);
 
-  /*  const flacMap = new Map<string, string>(dataParse);
-  const flacFile =
-    'src/__tests__/metadata/Album - 2005 - Artist/01 - quiet.flac';
-  const miFlac = await getMediaInfo(flacFile);
-  expect(Type.isMap(miFlac)).toBeTruthy();
-  expect(miFlac).toEqual(flacMap);
+  const wmaMap = new Map<string, string>(dataParse['wma']);
+  const wmaFile =
+    'src/__tests__/metadata/Album - 2005 - Artist/04 - Quiet 4.wma';
+  const miwma = await getMediaInfo(wmaFile);
+  expect(Type.isMap(miwma)).toBeTruthy();
+  expect(miwma).toEqual(wmaMap);
 
-  const flacMap = new Map<string, string>(dataParse);
-  const flacFile =
-    'src/__tests__/metadata/Album - 2005 - Artist/01 - quiet.flac';
-  const miFlac = await getMediaInfo(flacFile);
-  expect(Type.isMap(miFlac)).toBeTruthy();
-  expect(miFlac).toEqual(flacMap);*/
+  const wavMap = new Map<string, string>(dataParse['wav']);
+  const wavFile =
+    'src/__tests__/metadata/Album - 2005 - Artist/05 - Quiet5.wav';
+  const miwav = await getMediaInfo(wavFile);
+  expect(Type.isMap(miwav)).toBeTruthy();
+  expect(miwav).toEqual(wavMap);
 });
