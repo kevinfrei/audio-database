@@ -1,8 +1,8 @@
 import {
-  DebouncedDelay,
   MakeError,
   MakeLogger,
   ObjUtil,
+  OnlyOneActive,
   Operations,
   Pickle,
   Type,
@@ -93,6 +93,7 @@ export type MetadataStore = {
   shouldTry: (path: string) => boolean;
   save: () => void;
   load: () => Promise<boolean>;
+  flush: () => Promise<void>;
 };
 
 const fullMetadataKeys: Map<string, (obj: unknown) => boolean> = new Map<
@@ -224,7 +225,7 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
   function shouldTry(path: string) {
     return !stopTrying.has(path);
   }
-  const saverDelay = DebouncedDelay(async () => {
+  const saverDelay = OnlyOneActive(async () => {
     log('Saving store back to disk');
     const valueToSave = {
       store: [...store.values()] as unknown,
@@ -238,7 +239,7 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
       log('Not saving: Store is not dirty');
       return;
     }
-    saverDelay();
+    void saverDelay();
   }
   async function load() {
     if (loaded) {
@@ -292,7 +293,15 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
     loaded = okay;
     return okay;
   }
-  return { get, set, fail, shouldTry, save, load };
+  return {
+    get,
+    set,
+    fail,
+    shouldTry,
+    save,
+    load,
+    flush: async () => await saverDelay.trigger(),
+  };
 }
 
 const mdcm: Map<string, MetadataStore> = new Map<string, MetadataStore>();

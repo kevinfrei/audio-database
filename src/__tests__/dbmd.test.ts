@@ -1,5 +1,4 @@
 /*
-export declare function getMediaInfo(mediaPath: string): Promise<Map<string, string>>;
 export declare type MetadataStore = {
     get: (path: string) => MinimumMetadata | void;
     set: (path: string, md: MinimumMetadata) => void;
@@ -8,13 +7,25 @@ export declare type MetadataStore = {
     save: () => void;
     load: () => Promise<boolean>;
 };
-export declare function GetMetadataStore(persist: Persist, name: string): Promise<MetadataStore>;
 */
 
 import { Type } from '@freik/core-utils';
 import { FullMetadata } from '@freik/media-core';
+import { MakePersistence } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
-import { getMediaInfo, IsFullMetadata, IsOnlyMetadata } from '../DbMetadata';
+import path from 'path';
+import {
+  getMediaInfo,
+  GetMetadataStore,
+  IsFullMetadata,
+  IsOnlyMetadata,
+} from '../DbMetadata';
+
+beforeAll(async () => {
+  try {
+    await fsp.rm(path.resolve('src/__tests__/persist-basic/basic.json'));
+  } catch (err) {}
+});
 
 it('Full/Partial Metadata tests', () => {
   const partial = { originalPath: '/a/file/path.mp3', track: 1 };
@@ -80,4 +91,41 @@ it('Generic getMediaInfo tests', async () => {
   const miwav = await getMediaInfo(wavFile);
   expect(Type.isMap(miwav)).toBeTruthy();
   expect(miwav).toEqual(wavMap);
+});
+
+const persist = MakePersistence(path.resolve('src/__tests__/persist-basic'));
+it('Basic Metadata Store routines', async () => {
+  const mds = await GetMetadataStore(persist, 'basic');
+  const someFile = mds.get('/data/someFile.mp3');
+  expect(someFile).toBeUndefined();
+  mds.set('/data/someFile.mp3', {
+    originalPath: '/data/someFile.mp3',
+    title: 'New Title',
+  });
+  const tryAgain = mds.get('/data/someFile.mp3');
+  expect(tryAgain).toBeDefined();
+  if (!Type.hasStr(tryAgain, 'title')) throw new Error('No title');
+  expect(tryAgain['title']).toEqual('New Title');
+  mds.set('/data/someFile.mp3', {
+    originalPath: '/data/someFile.mp3',
+    title: 'New Title again',
+    track: 1,
+  });
+  const more = mds.get('/data/someFile.mp3');
+  expect(more).toBeDefined();
+  if (!Type.hasStr(more, 'title')) throw new Error('No title');
+  if (!Type.has(more, 'track')) throw new Error('No title');
+  expect(more['title']).toEqual('New Title again');
+  expect(more['track']).toEqual(1);
+  await mds.flush();
+});
+
+it('Yet another Metadata Store', async () => {
+  const mds = await GetMetadataStore(persist, 'basic');
+  const someFile = mds.get('/data/someFile.mp3');
+  expect(someFile).toBeDefined();
+  if (!Type.hasStr(someFile, 'title')) throw new Error('No title');
+  if (!Type.has(someFile, 'track')) throw new Error('No title');
+  expect(someFile['title']).toEqual('New Title again');
+  expect(someFile['track']).toEqual(1);
 });
