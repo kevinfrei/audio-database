@@ -89,6 +89,8 @@ export async function getMediaInfo(
 export type MetadataStore = {
   get: (path: string) => MinimumMetadata | void;
   set: (path: string, md: MinimumMetadata) => void;
+  merge: (path: string, md: MinimumMetadata) => void;
+  overwrite: (path: string, md: MinimumMetadata) => void;
   fail: (path: string) => void;
   shouldTry: (path: string) => boolean;
   save: () => void;
@@ -211,6 +213,16 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
       return;
     }
     dirty = true;
+    store.set(path, { ...curMd, ...md });
+    stopTrying.delete(path);
+    void save();
+  }
+  function overwrite(path: string, md: MinimumMetadata) {
+    const curMd = get(path);
+    if (curMd && minMetadataEqual(curMd, md)) {
+      return;
+    }
+    dirty = true;
     store.set(path, md);
     stopTrying.delete(path);
     void save();
@@ -296,6 +308,8 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
   return {
     get,
     set,
+    merge: set,
+    overwrite,
     fail,
     shouldTry,
     save,
