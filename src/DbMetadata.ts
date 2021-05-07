@@ -12,9 +12,6 @@ import { Attributes, FullMetadata } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
 import { Persist } from '@freik/node-utils';
 
-// eslint-disable-next-line @typescript-eslint/unbound-method
-const { RawMetadata, FromFileAsync } = Metadata;
-
 const log = MakeLogger('metadata');
 const err = MakeError('metadata-err', false);
 
@@ -59,8 +56,8 @@ function flatten(obj: NestedObject): Map<string, string> {
 export async function getMediaInfo(
   mediaPath: string,
 ): Promise<Map<string, string>> {
-  const trackInfo = await RawMetadata(mediaPath);
-  const maybeSimple = await FromFileAsync(mediaPath);
+  const trackInfo = await Metadata.RawMetadata(mediaPath);
+  const maybeSimple = await Metadata.FromFileAsync(mediaPath);
   const simple: NestedObject = ((maybeSimple as any) as NestedObject) || {};
   const maybeFull = maybeSimple
     ? Metadata.FullFromObj(mediaPath, (maybeSimple as any) as Attributes)
