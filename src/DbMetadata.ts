@@ -58,9 +58,9 @@ export async function getMediaInfo(
 ): Promise<Map<string, string>> {
   const trackInfo = await Metadata.RawMetadata(mediaPath);
   const maybeSimple = await Metadata.FromFileAsync(mediaPath);
-  const simple: NestedObject = ((maybeSimple as any) as NestedObject) || {};
+  const simple: NestedObject = (maybeSimple as any as NestedObject) || {};
   const maybeFull = maybeSimple
-    ? Metadata.FullFromObj(mediaPath, (maybeSimple as any) as Attributes)
+    ? Metadata.FullFromObj(mediaPath, maybeSimple as any as Attributes)
     : null;
   const full: NestedObject = (maybeFull as NestedObject) || {};
   let res: Map<string, string>;

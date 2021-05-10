@@ -28,7 +28,7 @@
     "chk": "yarn lint && yarn compile && yarn test"
   },
   "dependencies": {
-    "@freik/core-utils": "^0.22.1",
+    "@freik/core-utils": "^0.23.0",
     "@freik/media-core": "^0.4.6",
     "@freik/media-utils": "^0.10.8",
     "@freik/node-utils": "^0.14.4",
@@ -38,13 +38,13 @@
     "@freik/build-tools": "^2.6.0",
     "@types/jest": "^26.0.23",
     "@types/xxhashjs": "^0.2.2",
-    "@typescript-eslint/eslint-plugin": "^4.22.0",
-    "eslint": "^7.25.0",
+    "@typescript-eslint/eslint-plugin": "^4.22.1",
+    "eslint": "^7.26.0",
     "husky": "^6.0.0",
     "jest": "^26.6.3",
     "pinst": "^2.1.6",
-    "prettier": "^2.2.1",
-    "ts-jest": "^26.5.5",
+    "prettier": "^2.3.0",
+    "ts-jest": "^26.5.6",
     "typescript": "^4.2.4"
   },
   "files": [
