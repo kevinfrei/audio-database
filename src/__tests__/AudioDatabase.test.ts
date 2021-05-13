@@ -1,5 +1,6 @@
 import { MakePersistence } from '@freik/node-utils';
 import fs from 'fs';
+import { MakeAudioDatabase } from '../AudioDatabase';
 import { remove } from './AudioFileIndex.test';
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
@@ -28,10 +29,10 @@ function swap<T>(items: T[]) {
 }
 
 it('dummy test', async () => {
-  /*  const db = await MakeAudioDatabase(persist);
+  const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
   const flat = db.getFlatDatabase();
-  expect(flat).toEqual({ albums: [], artists: [], songs: [] });*/
+  expect(flat).toEqual({ albums: [], artists: [], songs: [] });
   expect(true).toBeTruthy();
 });
 
