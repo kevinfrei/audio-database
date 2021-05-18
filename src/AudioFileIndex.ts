@@ -1,5 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import {
+  FreikTypeTag,
   FromU8,
   MakeError,
   MakeLogger,
@@ -63,7 +64,10 @@ export type AudioFileIndex = {
     preferInternal?: boolean,
   ): Promise<Buffer | void>;
   destroy(): void;
+  [FreikTypeTag]: symbol;
 };
+
+const AFITypeTag = Symbol.for('freik.AudioFileIndexTag');
 
 // Helpers for the file list stuff
 const audioTypes = MakeSuffixWatcher('flac', 'mp3', 'aac', 'm4a');
@@ -231,7 +235,25 @@ export async function MakeAudioFileIndex(
     metadataCache: await GetMetadataStore(_persist, 'metadataCache'),
     metadataOverride: await GetMetadataStore(_persist, 'metadataOverride'),
     // A hash table of h32's to path-names
-    existingSongKeys: new Map<number, string>(),
+    existingSongKeys: await (async () => {
+      const songKeyText = await _persist.getItemAsync('songKeys');
+      if (Type.isString(songKeyText)) {
+        const split = songKeyText.split('\n');
+        const vals = split
+          .map((line): [number, string] => {
+            const sp = line.split(',', 2);
+            if (Type.is2TupleOf(sp, Type.isString, Type.isString)) {
+              const key = Type.asNumber(Number.parseInt(sp[0], 36), -1);
+              return [key, sp[1]];
+            } else {
+              return [-1, ''];
+            }
+          })
+          .filter(([n, s]) => n !== -1 && s.length > 0);
+        return new Map(vals);
+      }
+      return new Map<number, SongKey>();
+    })(),
     pictures: await MakeBlobStore(
       (key: MediaKey) => ToPathSafeName(key),
       path.join(_location, 'images'),
@@ -254,6 +276,7 @@ export async function MakeAudioFileIndex(
     getImageForSong,
     setImageForSong,
     destroy: () => delIndex(res),
+    [FreikTypeTag]: AFITypeTag,
   };
   data.indexHashString = addIndex(fragmentHash, data.location, res);
   data.fileIndex.forEachFileSync((pathName: string) => {
@@ -307,6 +330,13 @@ export async function MakeAudioFileIndex(
       }
     } catch (e) {} // eslint-disable-line no-empty
     return false;
+  }
+
+  async function saveExistingSongKeys(): Promise<void> {
+    const val = [...data.existingSongKeys.entries()]
+      .map(([n, s]) => n.toString(36) + ',' + s)
+      .join('\n');
+    await data.persist.setItemAsync('songKeys', val);
   }
 
   // Given either a key or a path, this returns a full path
