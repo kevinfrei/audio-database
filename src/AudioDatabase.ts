@@ -17,6 +17,9 @@ import {
   Artist,
   ArtistKey,
   FullMetadata,
+  isAlbumKey,
+  isArtistKey,
+  isSongKey,
   MediaKey,
   SongKey,
 } from '@freik/media-core';
@@ -25,6 +28,7 @@ import path from 'path';
 import { SongWithPath, VAType } from '.';
 import {
   AudioFileIndex,
+  GetIndexForKey,
   GetIndexForPath,
   MakeAudioFileIndex,
 } from './AudioFileIndex';
@@ -44,11 +48,11 @@ export type FlatAudioDatabase = {
 export type AudioDatabase = {
   // General stuff
   addAudioFileIndex(idx: AudioFileIndex): void;
-  getAlbumPicture(key: AlbumKey): string;
+  getAlbumPicture(key: AlbumKey): Promise<Buffer | void>;
   setAlbumPicture(key: AlbumKey, filepath: string): void;
-  getArtistPicture(key: ArtistKey): string;
+  getArtistPicture(key: ArtistKey): Promise<Buffer | void>;
   setArtistPicture(key: ArtistKey, filepath: string): void;
-  getSongPicture(key: SongKey): string;
+  getSongPicture(key: SongKey): Promise<Buffer | void>;
   setSongPicture(key: SongKey, filepath: string): void;
   addSongFromPath(filepath: string): void; // Some Testing
   addOrUpdateSong(md: FullMetadata): void;
@@ -56,7 +60,7 @@ export type AudioDatabase = {
   delSongByKey(key: SongKey): boolean; // Some Testing
   // For all the 'parsed' data
   getFlatDatabase(): FlatAudioDatabase; // Some Testing
-  // Loading/saving
+  // Loading from/saving to persistence
   load(filename: string): Promise<boolean>; // Some Testing
   save(filename: string): Promise<void>; // Some Testing
   // Updating
@@ -121,13 +125,25 @@ export async function MakeAudioDatabase(
   /*
    * Member functions
    */
-  function getPicture(key: MediaKey): string {
-    // TODO: This is *not* correct: Update this to get the picture from the AFI
-    const p = data.dbPictures.get(key);
-    if (p) {
-      return p;
+  async function getPicture(key: MediaKey): Promise<Buffer | void> {
+    if (isAlbumKey(key)) {
+      const album = data.dbAlbums.get(key);
+      if (album && album.songs.length > 0) {
+        return getPicture(album.songs[0]);
+      }
+    } else if (isArtistKey(key)) {
+      const artist = data.dbArtists.get(key);
+      if (artist && artist.songs.length > 0) {
+        return getPicture(artist.songs[0]);
+      }
+    } else if (isSongKey(key)) {
+      const idx = GetIndexForKey(key);
+      const song = data.dbSongs.get(key);
+      if (idx && song) {
+        return idx.getImageForSong(song.path);
+      }
     }
-    return '*TODO: Default Picture Path*';
+    // TODO: Return the default picture?
   }
 
   function setPicture(key: MediaKey, filePath: string) {
