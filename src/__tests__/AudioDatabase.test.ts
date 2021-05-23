@@ -4,7 +4,7 @@ import { MakePersistence } from '@freik/node-utils';
 import fs from 'fs';
 import { MakeAudioDatabase } from '../AudioDatabase';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
-import { remove } from './AudioFileIndex.test';
+import { remove, removeDir } from './AudioFileIndex.test';
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
 const {
@@ -17,12 +17,13 @@ const {
 
 // Initialization if we need anything
 beforeAll(() => {
-  return;
+  removeDir('./src/__tests__/NotActuallyFiles/.afi');
 });
 
 afterAll(async () => {
   // Clean-up after the test
   remove('./src/__tests__/persist-basic/test.json');
+  removeDir('./src/__tests__/NotActuallyFiles/.afi');
 });
 
 function swap<T>(items: T[]) {
