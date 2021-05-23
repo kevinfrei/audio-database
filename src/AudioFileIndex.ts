@@ -482,8 +482,8 @@ export async function MakeAudioFileIndex(
   }
 
   async function loadCoverFromFile(fullPath: string): Promise<Buffer | void> {
-    // TODO: Maybe keep track of which files we've already read from, so we can
-    // skip this step in the future, yes?
+    // TODO: Maybe keep track of which files we've already read from,
+    // so we can skip this step in the future, yes?
     // Or instead leave this up to the AFI consumer to implement?
     const maybeData = await Covers.ReadFromFile(fullPath);
     if (maybeData) {

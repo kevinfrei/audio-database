@@ -24,6 +24,7 @@ import {
   SongKey,
 } from '@freik/media-core';
 import { MakePersistence, Persist } from '@freik/node-utils';
+import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
 import { SongWithPath, VAType } from '.';
@@ -50,11 +51,11 @@ export type AudioDatabase = {
   // General stuff
   addAudioFileIndex(idx: AudioFileIndex): Promise<void>;
   getAlbumPicture(key: AlbumKey): Promise<Buffer | void>;
-  setAlbumPicture(key: AlbumKey, filepath: string): void;
+  setAlbumPicture(key: AlbumKey, filepath: string): Promise<void>;
   getArtistPicture(key: ArtistKey): Promise<Buffer | void>;
-  setArtistPicture(key: ArtistKey, filepath: string): void;
+  setArtistPicture(key: ArtistKey, filepath: string): Promise<void>;
   getSongPicture(key: SongKey): Promise<Buffer | void>;
-  setSongPicture(key: SongKey, filepath: string): void;
+  setSongPicture(key: SongKey, filepath: string): Promise<void>;
   addSongFromPath(filepath: string): void; // Some Testing
   addOrUpdateSong(md: FullMetadata): void;
   delSongByPath(filepath: string): boolean; // Some Testing
@@ -84,7 +85,6 @@ type PrivateAudioData = {
   dbSongs: Map<SongKey, SongWithPath>;
   dbAlbums: Map<AlbumKey, Album>;
   dbArtists: Map<ArtistKey, Artist>;
-  dbPictures: Map<MediaKey, string>;
   albumTitleIndex: MultiMap<string, AlbumKey>;
   artistNameIndex: Map<string, ArtistKey>;
   keywordIndex: MusicSearch | null;
@@ -144,7 +144,6 @@ export async function MakeAudioDatabase(
     dbSongs: new Map<SongKey, SongWithPath>(),
     dbAlbums: new Map<AlbumKey, Album>(),
     dbArtists: new Map<ArtistKey, Artist>(),
-    dbPictures: new Map<MediaKey, string>(),
     albumTitleIndex: MakeMultiMap<string, AlbumKey>(),
     artistNameIndex: new Map<string, ArtistKey>(),
     keywordIndex: null,
@@ -195,9 +194,14 @@ export async function MakeAudioDatabase(
     // TODO: Return the default picture?
   }
 
-  function setPicture(key: MediaKey, filePath: string) {
-    // TODO: This is *not* correct: Update this to forward the data to the AFI
-    data.dbPictures.set(key, filePath);
+  async function setPicture(key: MediaKey, filePath: string): Promise<void> {
+    // TODO: This is *not* correct for non-Song keys.
+    // Need more capabilities from AFI
+    const afi = GetIndexForKey(key);
+    if (afi && isSongKey(key)) {
+      const buf = await fsp.readFile(filePath);
+      await afi.setImageForSong(key, buf);
+    }
   }
 
   function getOrNewArtist(name: string): Artist {
@@ -615,7 +619,6 @@ export async function MakeAudioDatabase(
       !Type.has(flattened, 'dbSongs') ||
       !Type.has(flattened, 'dbAlbums') ||
       !Type.has(flattened, 'dbArtists') ||
-      !Type.has(flattened, 'dbPictures') ||
       !Type.has(flattened, 'albumTitleIndex') ||
       !Type.has(flattened, 'artistNameIndex') ||
       !Type.has(flattened, 'indices')
@@ -626,7 +629,6 @@ export async function MakeAudioDatabase(
     const songs = flattened.dbSongs as Map<SongKey, SongWithPath>;
     const albums = flattened.dbAlbums as Map<AlbumKey, Album>;
     const artists = flattened.dbArtists as Map<ArtistKey, Artist>;
-    const pictures = flattened.dbPictures as Map<MediaKey, string>;
     const titleIndex = flattened.albumTitleIndex as MultiMap<string, AlbumKey>;
     const nameIndex = flattened.artistNameIndex as Map<string, ArtistKey>;
     const idx = flattened.indices as { location: string; hash: number }[];
@@ -636,7 +638,6 @@ export async function MakeAudioDatabase(
     data.dbSongs = songs;
     data.dbArtists = artists;
     data.dbAlbums = albums;
-    data.dbPictures = pictures;
     data.albumTitleIndex = titleIndex;
     data.artistNameIndex = nameIndex;
     data.dbAudioIndices = audioIndices;
@@ -652,7 +653,6 @@ export async function MakeAudioDatabase(
         dbSongs: data.dbSongs,
         dbAlbums: data.dbAlbums,
         dbArtists: data.dbArtists,
-        dbPictures: data.dbPictures,
         albumTitleIndex: data.albumTitleIndex,
         artistNameIndex: data.artistNameIndex,
         indices: data.dbAudioIndices.map((afi) => ({
