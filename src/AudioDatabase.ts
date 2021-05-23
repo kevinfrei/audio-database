@@ -37,7 +37,7 @@ import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
 
 // eslint-disable-next-line
-const log = MakeLogger('AudioDatabase', true);
+const log = MakeLogger('AudioDatabase');
 const err = MakeError('AudioDatabase-err');
 
 export type FlatAudioDatabase = {

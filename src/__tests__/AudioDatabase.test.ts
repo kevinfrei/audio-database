@@ -40,25 +40,42 @@ it('dummy test', async () => {
   expect(true).toBeTruthy();
 });
 
-it('Querty a reasonably sized database', async () => {
+it('Query a reasonably sized database', async () => {
   const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
   const afi = await MakeAudioFileIndex('./src/__tests__/NotActuallyFiles', 0);
   expect(afi).toBeDefined();
-  await afi.rescanFiles();
+  await db.refresh();
   await db.addAudioFileIndex(afi);
   const flat = db.getFlatDatabase();
+
   // Some basic stupidity:
   expect(flat.songs.length).toEqual(735);
   expect(flat.albums.length).toEqual(187);
   expect(flat.artists.length).toEqual(271);
+
   // More basic stupidity:
   for (const song of flat.songs) {
     expect(db.getSong(song.key)).toEqual(song);
   }
+
+  // Look for a particular album for picture checking
+  let negot: Album | undefined = undefined;
   for (const album of flat.albums) {
     expect(db.getAlbum(album.key)).toEqual(album);
+    const ttl = album.title.toLocaleLowerCase();
+    if (ttl === "'71-'86 negotiations & love songs") {
+      negot = album;
+    }
   }
+  expect(negot).toBeDefined();
+  if (!negot) throw Error('bad news');
+  const pic = db.getAlbumPicture(negot.key);
+  /*
+  expect(pic).toBeDefined();
+  expect(pic).toMatch(/foo.jpg$/);
+  */
+
   // let's find an artist, while we're at it
   let paulSimon: Artist | undefined = undefined;
   for (const artist of flat.artists) {
