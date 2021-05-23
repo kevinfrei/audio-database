@@ -31,7 +31,7 @@ function swap<T>(items: T[]) {
   items[0] = items[1];
   items[1] = a;
 }
-
+/*
 it('dummy test', async () => {
   const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
@@ -39,14 +39,14 @@ it('dummy test', async () => {
   expect(flat).toEqual({ albums: [], artists: [], songs: [] });
   expect(true).toBeTruthy();
 });
-
+*/
 it('Query a reasonably sized database', async () => {
   const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
   const afi = await MakeAudioFileIndex('./src/__tests__/NotActuallyFiles', 0);
   expect(afi).toBeDefined();
-  await db.refresh();
   await db.addAudioFileIndex(afi);
+  await db.refresh();
   const flat = db.getFlatDatabase();
 
   // Some basic stupidity:
@@ -70,11 +70,11 @@ it('Query a reasonably sized database', async () => {
   }
   expect(negot).toBeDefined();
   if (!negot) throw Error('bad news');
-  const pic = db.getAlbumPicture(negot.key);
-  /*
+  const pic = await db.getAlbumPicture(negot.key);
   expect(pic).toBeDefined();
-  expect(pic).toMatch(/foo.jpg$/);
-  */
+  expect(pic).toBeInstanceOf(Buffer);
+  if (!pic) throw Error('Not Buffer');
+  expect(pic.length).toEqual(19);
 
   // let's find an artist, while we're at it
   let paulSimon: Artist | undefined = undefined;

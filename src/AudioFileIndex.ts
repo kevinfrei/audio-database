@@ -506,6 +506,7 @@ export async function MakeAudioFileIndex(
 
     // Next, check the song (if preferred)
     const fullPath = pathFromKeyOrPath(keyOrPath);
+    const relPath = getRelativePath(fullPath);
     if (preferInternal) {
       const maybeBuffer = await loadCoverFromFile(fullPath);
       if (maybeBuffer) {
@@ -513,9 +514,10 @@ export async function MakeAudioFileIndex(
       }
     }
     // Check for a folder-hosted image
-    const maybeFile = data.fileSystemPictures.get(getRelativePath(fullPath));
+    const maybeFile = data.fileSystemPictures.get(relPath);
     if (maybeFile) {
-      return await fsp.readFile(fullPath);
+      const fullpath = getFullPath(maybeFile);
+      return await fsp.readFile(fullpath);
     }
     // We didn't find folder-hosted image, check the file if we didn't earlier
     if (!preferInternal) {
@@ -549,17 +551,23 @@ export async function MakeAudioFileIndex(
         let largest: SizeAndName = { size: 0, name: '' };
         for (const cur of setOfFiles) {
           try {
-            const fileStat = await fsp.stat(cur);
+            const fullPath = getFullPath(cur);
+            const fileStat = await fsp.stat(fullPath);
             if (fileStat.size > largest.size) {
               largest = { size: fileStat.size, name: cur };
             }
             // eslint-disable-next-line no-empty
-          } catch (e) {}
+          } catch (e) {
+            err('Error!');
+            err(e);
+          }
         }
         // Now, for each file, set it's cover to the largest file
-        songs.forEach((song) =>
-          data.fileSystemPictures.set(song, largest.name),
-        );
+        songs.forEach((song) => {
+          if (largest.name) {
+            data.fileSystemPictures.set(song, largest.name);
+          }
+        });
       }
     });
   }

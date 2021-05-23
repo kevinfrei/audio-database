@@ -167,13 +167,23 @@ export async function MakeAudioDatabase(
   async function getPicture(key: MediaKey): Promise<Buffer | void> {
     if (isAlbumKey(key)) {
       const album = data.dbAlbums.get(key);
-      if (album && album.songs.length > 0) {
-        return getPicture(album.songs[0]);
+      if (album) {
+        for (const songKey of album.songs) {
+          const res = await getPicture(songKey);
+          if (res instanceof Buffer) {
+            return res;
+          }
+        }
       }
     } else if (isArtistKey(key)) {
       const artist = data.dbArtists.get(key);
-      if (artist && artist.songs.length > 0) {
-        return getPicture(artist.songs[0]);
+      if (artist) {
+        for (const songKey of artist.songs) {
+          const res = await getPicture(songKey);
+          if (res instanceof Buffer) {
+            return res;
+          }
+        }
       }
     } else if (isSongKey(key)) {
       const idx = GetIndexForKey(key);
