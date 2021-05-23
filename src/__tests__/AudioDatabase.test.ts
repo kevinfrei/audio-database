@@ -39,10 +39,8 @@ it('dummy test', async () => {
 
 it('make a big database', async () => {
   const db = await MakeAudioDatabase(persist);
-  const afi = await MakeAudioFileIndex(
-    '/Volumes/Thunderbolt/Mirrored/Sorted',
-    0,
-  );
+  const afi = await MakeAudioFileIndex('./src/__tests__/NotActuallyFiles', 0);
+  await afi.rescanFiles();
   await db.addAudioFileIndex(afi);
   // console.log(db.getFlatDatabase());
 });
