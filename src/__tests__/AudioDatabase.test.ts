@@ -1,6 +1,7 @@
 import { MakePersistence } from '@freik/node-utils';
 import fs from 'fs';
 import { MakeAudioDatabase } from '../AudioDatabase';
+import { MakeAudioFileIndex } from '../AudioFileIndex';
 import { remove } from './AudioFileIndex.test';
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
@@ -36,7 +37,18 @@ it('dummy test', async () => {
   expect(true).toBeTruthy();
 });
 
-/* it('Add individual file to the db', async () => {
+it('make a big database', async () => {
+  const db = await MakeAudioDatabase(persist);
+  const afi = await MakeAudioFileIndex(
+    '/Volumes/Thunderbolt/Mirrored/Sorted',
+    0,
+  );
+  await db.addAudioFileIndex(afi);
+  // console.log(db.getFlatDatabase());
+});
+
+/*
+ it('Add individual file to the db', async () => {
   const db = await MakeAudioDatabase(persist);
   db.addSongFromPath(songPath);
   const flat = db.getFlatDatabase();
@@ -88,5 +100,4 @@ it('Save/Load consistency', async () => {
   const loadedFlat = db.getFlatDatabase();
   expect(loadedFlat).toEqual(flatDBwithBoth);
 });
-
 */

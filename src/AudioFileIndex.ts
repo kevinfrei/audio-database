@@ -269,7 +269,8 @@ export async function MakeAudioFileIndex(
     getLastScanTime: () => data.lastScanTime,
     makeSongKey,
     forEachAudioFile,
-    forEachAudioFileSync: (fn: PathHandlerSync) => data.songList.forEach(fn),
+    forEachAudioFileSync: (fn: PathHandlerSync) =>
+      data.songList.forEach((pn) => fn(getFullPath(pn))),
     rescanFiles,
     updateMetadata,
     getMetadataForSong,
@@ -292,7 +293,7 @@ export async function MakeAudioFileIndex(
   // public
   async function forEachAudioFile(fn: PathHandlerEither): Promise<void> {
     for (const song of data.songList) {
-      await MaybeWait(() => fn(song));
+      await MaybeWait(() => fn(getFullPath(song)));
     }
   }
 
@@ -436,7 +437,7 @@ export async function MakeAudioFileIndex(
     // This does some stuff about trying harder for files that don't parse right
     let maybeMetadata = null;
     try {
-      maybeMetadata = await Metadata.FromFileAsync(relPath);
+      maybeMetadata = await Metadata.FromFileAsync(getFullPath(relPath));
     } catch (e) {
       err(`Failed acquiring metadata from ${relPath}:`);
       err(e);
@@ -446,7 +447,10 @@ export async function MakeAudioFileIndex(
       data.metadataCache.fail(relPath);
       return;
     }
-    const fullMd = Metadata.FullFromObj(relPath, maybeMetadata as any);
+    const fullMd = Metadata.FullFromObj(
+      getFullPath(relPath),
+      maybeMetadata as any,
+    );
     if (!fullMd) {
       log(`Partial metadata failure for ${relPath}`);
       data.metadataCache.fail(relPath);

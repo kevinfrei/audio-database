@@ -7,7 +7,7 @@ import {
   MultiMap,
   Operations,
   Pickle,
-  SeqNum,
+  ToU8,
   Type,
   Unpickle,
 } from '@freik/core-utils';
@@ -25,6 +25,7 @@ import {
 } from '@freik/media-core';
 import { MakePersistence, Persist } from '@freik/node-utils';
 import path from 'path';
+import { h32 } from 'xxhashjs';
 import { SongWithPath, VAType } from '.';
 import {
   AudioFileIndex,
@@ -47,7 +48,7 @@ export type FlatAudioDatabase = {
 
 export type AudioDatabase = {
   // General stuff
-  addAudioFileIndex(idx: AudioFileIndex): void;
+  addAudioFileIndex(idx: AudioFileIndex): Promise<void>;
   getAlbumPicture(key: AlbumKey): Promise<Buffer | void>;
   setAlbumPicture(key: AlbumKey, filepath: string): void;
   getArtistPicture(key: ArtistKey): Promise<Buffer | void>;
@@ -89,6 +90,46 @@ type PrivateAudioData = {
   keywordIndex: MusicSearch | null;
 };
 
+const artistHash = new Map<number, string>();
+function newArtistKey(artistName: string): string {
+  const name = normalizeName(artistName);
+  let hashNum = h32().update(name).digest().toNumber();
+  while (artistHash.has(hashNum)) {
+    const checkName = artistHash.get(hashNum);
+    if (checkName === name) {
+      break;
+    }
+    // There's a hash conflict :/
+    log('ArtistKey conflict discovered!');
+    hashNum = h32(hashNum).update(name).digest().toNumber();
+  }
+  artistHash.set(hashNum, name);
+  return `R${ToU8(hashNum)}`;
+}
+
+const albumHash = new Map<number, string>();
+function newAlbumKey(
+  albumName: string,
+  artistName: string,
+  year: number,
+): string {
+  const artistSummary = `${normalizeName(albumName)}*${normalizeName(
+    artistName,
+  )}*${year}`;
+  let hashNum = h32().update(artistSummary).digest().toNumber();
+  while (albumHash.has(hashNum)) {
+    const checkName = albumHash.get(hashNum);
+    if (checkName === artistSummary) {
+      break;
+    }
+    // There's a hash conflict :/
+    log('AlbumKey conflict discovered!');
+    hashNum = h32(hashNum).update(artistSummary).digest().toNumber();
+  }
+  artistHash.set(hashNum, artistSummary);
+  return `L${ToU8(hashNum)}`;
+}
+
 export async function MakeAudioDatabase(
   localStorageLocation: string | Persist,
 ): Promise<AudioDatabase> {
@@ -109,8 +150,6 @@ export async function MakeAudioDatabase(
     keywordIndex: null,
   };
 
-  const newAlbumKey = SeqNum('L');
-  const newArtistKey = SeqNum('R');
   let existingKeys: Map<string, SongKey> | null = null;
 
   function getSongKey(songPath: string): string {
@@ -163,7 +202,7 @@ export async function MakeAudioDatabase(
       err("DB inconsistency - artist key by name doesn't exist in key index");
       // Fall-through and just overwrite the artistNameIndex with a new key...
     }
-    const key: ArtistKey = newArtistKey();
+    const key: ArtistKey = newArtistKey(name);
     data.artistNameIndex.set(normalizeName(name), key);
     const artist: Artist = { name, songs: [], albums: [], key };
     data.dbArtists.set(key, artist);
@@ -291,7 +330,11 @@ export async function MakeAudioDatabase(
     // If we've reached this code, we need to create a new album
     // sharedNames is already the (potentially empty) array of albumKeys
     // for the given title, so we can just add it to that array
-    const key: AlbumKey = newAlbumKey();
+    const key: AlbumKey = newAlbumKey(
+      title,
+      vatype === '' ? artists.join('/') : vatype,
+      year,
+    );
     const album: Album = {
       year,
       primaryArtists: vatype === '' ? artists : [],
@@ -452,12 +495,13 @@ export async function MakeAudioDatabase(
     return true;
   }
 
-  function addAudioFileIndex(idx: AudioFileIndex) {
+  async function addAudioFileIndex(idx: AudioFileIndex): Promise<void> {
     // Keep this thing around for future updating when the metadata
     // caching is moved into the file index
-    // TODO: Add the *files* from the AFI (and rebuild the search index)
-    // TODO: Migrate metadata caching/overrides to the AFI
+    // TODO: Rebuild the search index
+    // TODO: Migrate metadata caching/overrides to the AFI, perhaps?
     data.dbAudioIndices.push(idx);
+    await idx.forEachAudioFile(addSongFromPath);
   }
 
   function rebuildIndex() {
@@ -535,6 +579,7 @@ export async function MakeAudioDatabase(
           ),
         );
         // TODO: It should rebuild the keyword index
+        log('Finished');
       } finally {
         singleWaiter.leave();
       }
