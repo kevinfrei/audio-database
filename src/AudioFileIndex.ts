@@ -1,5 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 import {
+  DebouncedDelay,
   FreikTypeTag,
   FromU8,
   MakeError,
@@ -276,7 +277,10 @@ export async function MakeAudioFileIndex(
     getMetadataForSong,
     getImageForSong,
     setImageForSong,
-    destroy: () => delIndex(res),
+    destroy: () => {
+      saveSongKeys();
+      delIndex(res);
+    },
     [FreikTypeTag]: AFITypeTag,
   };
   data.indexHashString = addIndex(fragmentHash, data.location, res);
@@ -339,6 +343,7 @@ export async function MakeAudioFileIndex(
       .join('\n');
     await data.persist.setItemAsync('songKeys', val);
   }
+  const saveSongKeys = DebouncedDelay(saveExistingSongKeys, 250);
 
   // Given either a key or a path, this returns a full path
   function pathFromKeyOrPath(keyorpath: string): string {
@@ -376,6 +381,7 @@ export async function MakeAudioFileIndex(
       hash = h32(songPath, hash).toNumber();
     }
     data.existingSongKeys.set(hash, relPath);
+    saveSongKeys();
     return `S${data.indexHashString}:${ToU8(hash)}`;
   }
 
