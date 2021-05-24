@@ -57,7 +57,6 @@ export type AudioDatabase = {
   getSongPicture(key: SongKey): Promise<Buffer | void>;
   setSongPicture(key: SongKey, filepath: string): Promise<void>;
   addSongFromPath(filepath: string): void; // Some Testing
-  addOrUpdateSong(md: FullMetadata): void;
   delSongByPath(filepath: string): boolean; // Some Testing
   delSongByKey(key: SongKey): boolean; // Some Testing
   // For all the 'parsed' data
@@ -68,7 +67,8 @@ export type AudioDatabase = {
   // Updating
   refresh(): Promise<boolean>;
   updateMetadata(fullPath: string, newMetadata: Partial<FullMetadata>): boolean;
-
+  addOrUpdateSong(md: FullMetadata): void;
+  getMetadata(fullPathOrKey: string): Promise<FullMetadata | void>;
   // API
   getSong(key: SongKey): SongWithPath | void;
   getAlbum(key: AlbumKey): Album | void;
@@ -675,6 +675,25 @@ export async function MakeAudioDatabase(
     indexForPath.updateMetadata({ ...newMetadata, originalPath: fullPath });
     return true;
   }
+
+  async function getMetadata(
+    fullPathOrKey: string,
+  ): Promise<FullMetadata | void> {
+    const isPath = fullPathOrKey.indexOf('/') >= 0;
+    const afi = isPath
+      ? GetIndexForPath(fullPathOrKey)
+      : GetIndexForKey(fullPathOrKey);
+    if (!afi) {
+      // TODO: Make a "everything else" index?
+      return;
+    }
+    const key = isPath ? afi.makeSongKey(fullPathOrKey) : fullPathOrKey;
+    const song = data.dbSongs.get(key);
+    if (!song) {
+      return;
+    }
+    return await afi.getMetadataForSong(song.path);
+  }
   /*
    *
    * Begin 'constructor' code here
@@ -709,6 +728,7 @@ export async function MakeAudioDatabase(
     delSongByPath,
     delSongByKey,
     getFlatDatabase,
+    getMetadata,
     load,
     save,
     refresh,
