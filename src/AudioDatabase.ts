@@ -132,7 +132,9 @@ function newAlbumKey(
 
 export async function MakeAudioDatabase(
   localStorageLocation: string | Persist,
+  audioKey?: string,
 ): Promise<AudioDatabase> {
+  const persistenceIdName = audioKey || 'audio-database';
   const persist = Type.isString(localStorageLocation)
     ? MakePersistence(localStorageLocation)
     : localStorageLocation;
@@ -148,8 +150,6 @@ export async function MakeAudioDatabase(
     artistNameIndex: new Map<string, ArtistKey>(),
     keywordIndex: null,
   };
-
-  let existingKeys: Map<string, SongKey> | null = null;
 
   function getSongKey(songPath: string): string {
     const index = GetIndexForPath(songPath);
@@ -611,8 +611,8 @@ export async function MakeAudioDatabase(
     };
   }
 
-  async function load(filename: string): Promise<boolean> {
-    const stringVal = await persist.getItemAsync(filename);
+  async function load(): Promise<boolean> {
+    const stringVal = await persist.getItemAsync(persistenceIdName);
     const flattened = Unpickle(stringVal || '0');
     if (
       !flattened ||
@@ -644,11 +644,11 @@ export async function MakeAudioDatabase(
     return true;
   }
 
-  async function save(filename: string): Promise<void> {
+  async function save(): Promise<void> {
     // I think this should just be handled automatically, instead of requiring
     // clients to remember to do this..
     await persist.setItemAsync(
-      filename,
+      persistenceIdName,
       Pickle({
         dbSongs: data.dbSongs,
         dbAlbums: data.dbAlbums,
@@ -699,18 +699,7 @@ export async function MakeAudioDatabase(
    * Begin 'constructor' code here
    *
    */
-
-  // Get the list of existing paths to song-keys
-  const maybeSongHash = await persist.getItemAsync('songHashIndex');
-  if (maybeSongHash) {
-    const songHash = Unpickle(maybeSongHash);
-    if (Type.isMapOfStrings(songHash)) {
-      existingKeys = songHash;
-    }
-  }
-  if (!existingKeys) {
-    existingKeys = new Map<string, SongKey>();
-  }
+  await load();
 
   return {
     getSong: (key: SongKey) => data.dbSongs.get(key),
