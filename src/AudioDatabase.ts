@@ -62,8 +62,8 @@ export type AudioDatabase = {
   // For all the 'parsed' data
   getFlatDatabase(): FlatAudioDatabase; // Some Testing
   // Loading from/saving to persistence
-  load(filename: string): Promise<boolean>; // Some Testing
-  save(filename: string): Promise<void>; // Some Testing
+  load(): Promise<boolean>; // Some Testing
+  save(): Promise<void>; // Some Testing
   // Updating
   refresh(): Promise<boolean>;
   updateMetadata(fullPath: string, newMetadata: Partial<FullMetadata>): boolean;
