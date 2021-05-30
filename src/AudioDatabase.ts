@@ -396,8 +396,10 @@ export async function MakeAudioDatabase(
       track: md.track + (md.disk || 0) * 100,
       title: md.title,
       key: getSongKey(md.originalPath),
-      variations: md.variations,
     };
+    if (md.variations !== undefined) {
+      theSong.variations = md.variations;
+    }
     album.songs.push(theSong.key);
     allArtists.forEach((artist) => {
       artist.songs.push(theSong.key);
