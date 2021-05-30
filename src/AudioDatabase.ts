@@ -49,7 +49,11 @@ export type FlatAudioDatabase = {
 
 export type AudioDatabase = {
   // General stuff
-  addAudioFileIndex(idx: AudioFileIndex): Promise<void>;
+  addAudioFileIndex(idx: AudioFileIndex): Promise<boolean>;
+  removeAudioFileIndex(idx: AudioFileIndex): Promise<boolean>;
+  addFileLocation(str: string): Promise<boolean>;
+  removeFileLocation(str: string): Promise<boolean>;
+  getLocations(): string[];
   getAlbumPicture(key: AlbumKey): Promise<Buffer | void>;
   setAlbumPicture(key: AlbumKey, filepath: string): Promise<void>;
   getArtistPicture(key: ArtistKey): Promise<Buffer | void>;
@@ -81,7 +85,7 @@ function normalizeName(n: string): string {
 }
 
 type PrivateAudioData = {
-  dbAudioIndices: AudioFileIndex[];
+  dbAudioIndices: Map<string, AudioFileIndex>;
   dbSongs: Map<SongKey, SongWithPath>;
   dbAlbums: Map<AlbumKey, Album>;
   dbArtists: Map<ArtistKey, Artist>;
@@ -142,7 +146,7 @@ export async function MakeAudioDatabase(
    * Private member data
    */
   const data: PrivateAudioData = {
-    dbAudioIndices: [],
+    dbAudioIndices: new Map<string, AudioFileIndex>(),
     dbSongs: new Map<SongKey, SongWithPath>(),
     dbAlbums: new Map<AlbumKey, Album>(),
     dbArtists: new Map<ArtistKey, Artist>(),
@@ -509,13 +513,39 @@ export async function MakeAudioDatabase(
     return true;
   }
 
-  async function addAudioFileIndex(idx: AudioFileIndex): Promise<void> {
+  async function addAudioFileIndex(idx: AudioFileIndex): Promise<boolean> {
     // Keep this thing around for future updating when the metadata
     // caching is moved into the file index
     // TODO: Rebuild the search index
     // TODO: Migrate metadata caching/overrides to the AFI, perhaps?
-    data.dbAudioIndices.push(idx);
+    const filePath = idx.getLocation();
+    if (data.dbAudioIndices.get(filePath)) {
+      return false;
+    }
+    data.dbAudioIndices.set(filePath, idx);
     await idx.forEachAudioFile(addSongFromPath);
+    return true;
+  }
+  async function addFileLocation(filePath: string): Promise<boolean> {
+    const afi = await MakeAudioFileIndex(
+      filePath,
+      h32(filePath, 0xdeadbeef).toNumber(),
+    );
+    return await addAudioFileIndex(afi);
+  }
+  async function removeFileLocation(filepath: string): Promise<boolean> {
+    const res = data.dbAudioIndices.delete(filepath);
+    if (res) {
+      return await refresh();
+    }
+    return false;
+  }
+  async function removeAudioFileIndex(idx: AudioFileIndex): Promise<boolean> {
+    const filepath = idx.getLocation();
+    return await removeFileLocation(filepath);
+  }
+  function getLocations(): string[] {
+    return [...data.dbAudioIndices.keys()];
   }
 
   function rebuildIndex() {
@@ -588,7 +618,7 @@ export async function MakeAudioDatabase(
       try {
         await Promise.all(
           // TODO: Also handle adding/deleting/changing images?
-          data.dbAudioIndices.map((afi) =>
+          [...data.dbAudioIndices.values()].map((afi) =>
             afi.rescanFiles(addSongFromPath, delSongByPath),
           ),
         );
@@ -632,8 +662,12 @@ export async function MakeAudioDatabase(
     const titleIndex = flattened.albumTitleIndex as MultiMap<string, AlbumKey>;
     const nameIndex = flattened.artistNameIndex as Map<string, ArtistKey>;
     const idx = flattened.indices as { location: string; hash: number }[];
-    const audioIndices = await Promise.all(
-      idx.map(({ location, hash }) => MakeAudioFileIndex(location, hash)),
+    const audioIndices = new Map(
+      (
+        await Promise.all(
+          idx.map(({ location, hash }) => MakeAudioFileIndex(location, hash)),
+        )
+      ).map((afi): [string, AudioFileIndex] => [afi.getLocation(), afi]),
     );
     data.dbSongs = songs;
     data.dbArtists = artists;
@@ -655,8 +689,8 @@ export async function MakeAudioDatabase(
         dbArtists: data.dbArtists,
         albumTitleIndex: data.albumTitleIndex,
         artistNameIndex: data.artistNameIndex,
-        indices: data.dbAudioIndices.map((afi) => ({
-          location: afi.getLocation(),
+        indices: [...data.dbAudioIndices].map(([loc, afi]) => ({
+          location: loc,
           hash: afi.getHashForIndex(),
         })),
       }),
@@ -706,6 +740,10 @@ export async function MakeAudioDatabase(
     getArtist: (key: ArtistKey) => data.dbArtists.get(key),
     getAlbum: (key: AlbumKey) => data.dbAlbums.get(key),
     addAudioFileIndex,
+    addFileLocation,
+    removeAudioFileIndex,
+    removeFileLocation,
+    getLocations,
     getArtistPicture: getPicture,
     setArtistPicture: setPicture,
     getAlbumPicture: getPicture,
