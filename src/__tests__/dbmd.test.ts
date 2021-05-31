@@ -15,7 +15,7 @@ import { MakePersistence } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import {
-  getMediaInfo,
+  GetMediaInfo,
   GetMetadataStore,
   IsFullMetadata,
   IsOnlyMetadata,
@@ -60,35 +60,35 @@ it('Generic getMediaInfo tests', async () => {
   const flacMap = new Map<string, string>(dataParse['flac']);
   const flacFile =
     'src/__tests__/metadata/Album - 2005 - Artist/01 - quiet.flac';
-  const miFlac = await getMediaInfo(flacFile);
+  const miFlac = await GetMediaInfo(flacFile);
   expect(Type.isMap(miFlac)).toBeTruthy();
   expect(miFlac).toEqual(flacMap);
 
   const m4aMap = new Map<string, string>(dataParse['m4a']);
   const m4aFile =
     'src/__tests__/metadata/Album - 2005 - Artist/02 - quiet2.m4a';
-  const mim4a = await getMediaInfo(m4aFile);
+  const mim4a = await GetMediaInfo(m4aFile);
   expect(Type.isMap(mim4a)).toBeTruthy();
   expect(mim4a).toEqual(m4aMap);
 
   const mp3Map = new Map<string, string>(dataParse['mp3']);
   const mp3File =
     'src/__tests__/metadata/Album - 2005 - Artist/03 - Quiet3.mp3';
-  const mimp3 = await getMediaInfo(mp3File);
+  const mimp3 = await GetMediaInfo(mp3File);
   expect(Type.isMap(mimp3)).toBeTruthy();
   expect(mimp3).toEqual(mp3Map);
 
   const wmaMap = new Map<string, string>(dataParse['wma']);
   const wmaFile =
     'src/__tests__/metadata/Album - 2005 - Artist/04 - Quiet 4.wma';
-  const miwma = await getMediaInfo(wmaFile);
+  const miwma = await GetMediaInfo(wmaFile);
   expect(Type.isMap(miwma)).toBeTruthy();
   expect(miwma).toEqual(wmaMap);
 
   const wavMap = new Map<string, string>(dataParse['wav']);
   const wavFile =
     'src/__tests__/metadata/Album - 2005 - Artist/05 - Quiet5.wav';
-  const miwav = await getMediaInfo(wavFile);
+  const miwav = await GetMediaInfo(wavFile);
   expect(Type.isMap(miwav)).toBeTruthy();
   expect(miwav).toEqual(wavMap);
 });

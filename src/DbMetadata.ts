@@ -53,7 +53,7 @@ function flatten(obj: NestedObject): Map<string, string> {
   return result;
 }
 
-export async function getMediaInfo(
+export async function GetMediaInfo(
   mediaPath: string,
 ): Promise<Map<string, string>> {
   const trackInfo = await Metadata.RawMetadata(mediaPath);
@@ -109,6 +109,7 @@ const fullMetadataKeys: Map<string, (obj: unknown) => boolean> = new Map<
   ['moreArtists', Type.isArrayOfString],
   ['variations', Type.isArrayOfString],
   ['disk', Type.isNumber],
+  ['diskName', Type.isString],
 ]);
 
 const mandatoryMetadataKeys: string[] = [
