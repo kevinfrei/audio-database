@@ -2,14 +2,12 @@ import {
   MakeMultiMap,
   MaybeWait,
   OnlyOneActive,
-  SeqNum,
-  SeqNumGenerator,
-  ToPathSafeName,
   Type,
 } from '@freik/core-utils';
 import { FileUtil, PathUtil } from '@freik/node-utils';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { h64 } from 'xxhashjs';
 
 export type BlobStore<T> = {
   get(key: T): Promise<Buffer | void>;
@@ -31,9 +29,8 @@ export async function MakeBlobStore<T>(
   // We're using Sequence Numbers for blob names
   // so this gets a "path safe" file name for the blob
   function getPath(seqNum: string): string {
-    return path.join(blobStoreDir, ToPathSafeName(seqNum));
+    return path.join(blobStoreDir, seqNum);
   }
-  let sn: SeqNumGenerator;
   // hash key to filename lookup
   const keyToPath = new Map<string, string>();
   const pathToKeys = MakeMultiMap<string, string>();
@@ -44,27 +41,22 @@ export async function MakeBlobStore<T>(
 
   try {
     const index = await FileUtil.textFileToArrayAsync(blobIndex);
-    sn = SeqNum('BLOB-', index[0]);
-    for (let i = 1; i < index.length; i += 2) {
+    for (let i = 0; i < index.length; i += 2) {
       keyToPath.set(index[i], index[i + 1]);
       pathToKeys.set(index[i + 1], index[i]);
     }
   } catch (e) {
-    sn = SeqNum('BLOB-');
     keyToPath.clear();
     pathToKeys.clear();
   }
 
-  let lastSeqNumSave = '';
-
   const saveIndexInTheFuture = OnlyOneActive(async () => {
-    const data = [lastSeqNumSave, ...keyToPath].flat();
+    const data = [...keyToPath].flat();
     await FileUtil.arrayToTextFileAsync(data, blobIndex);
   }, 250);
 
   // Save the index file back to disk
-  async function saveIndex(lastSeqNum: string) {
-    lastSeqNumSave = lastSeqNum;
+  async function saveIndex() {
     await saveIndexInTheFuture();
   }
 
@@ -83,24 +75,33 @@ export async function MakeBlobStore<T>(
 
   // Put a buffer on disk, with a set of keys (allowing many to one references)
   async function putMany(data: Buffer, keys: Iterable<T>): Promise<void> {
-    const filename = sn();
-    await fs.writeFile(getPath(filename), data);
+    const filename = 'BLOB-' + h64(data, 0x12481632).toString(36);
+    try {
+      await fs.writeFile(getPath(filename), data);
+    } catch (e) {
+      // This should handle conflicts, which hopefully never occur...
+    }
     for (const key of keys) {
       const xlateKey = await xlate(key);
       keyToPath.set(xlateKey, filename);
       pathToKeys.set(filename, xlateKey);
     }
-    await saveIndex(filename);
+    await saveIndex();
   }
 
   // Does what it says :D
   async function clear(): Promise<void> {
-    for (const [, file] of keyToPath) {
-      await fs.rm(getPath(file));
+    try {
+      await Promise.all(
+        [...new Set(keyToPath.values())].map((fileName) =>
+          fs.rm(getPath(fileName)),
+        ),
+      );
+    } catch (e) {
+      // We have have multiple files
     }
     keyToPath.clear();
     pathToKeys.clear();
-    lastSeqNumSave = sn();
     await saveIndexInTheFuture.trigger();
   }
 
@@ -117,13 +118,13 @@ export async function MakeBlobStore<T>(
         }
       }
     }
-    await saveIndex(sn());
+    await saveIndex();
   }
 
   async function flush() {
     await saveIndexInTheFuture.trigger();
   }
-  // T0D0: Add a 'deduplication' function? Hash the buffers or something?
+  // TODO: Add a 'deduplication' function? Hash the buffers or something?
 
   return {
     get,

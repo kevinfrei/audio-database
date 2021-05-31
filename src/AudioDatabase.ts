@@ -216,6 +216,20 @@ export async function MakeAudioDatabase(
     if (afi) {
       if (isSongKey(key)) {
         await afi.setImageForSong(key, buf);
+      } else if (isAlbumKey(key)) {
+        const album = data.dbAlbums.get(key);
+        if (album) {
+          await Promise.all(
+            album.songs.map((k) => afi.setImageForSong(k, buf)),
+          );
+        }
+      } else if (isArtistKey(key)) {
+        const artist = data.dbArtists.get(key);
+        if (artist) {
+          await Promise.all(
+            artist.songs.map((k) => afi.setImageForSong(k, buf)),
+          );
+        }
       }
     }
   }

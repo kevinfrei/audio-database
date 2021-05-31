@@ -23,7 +23,7 @@ test('BlobStore test', async () => {
   const newBuf = await blobs.get('theKey');
   expect(newBuf).toBeDefined();
   expect(buf.toString()).toEqual((newBuf as Buffer).toString());
-  await blobs.flush();
+  await blobs.flush(); // Flush to disk
 });
 
 test('Restore a BlobStore test', async () => {
