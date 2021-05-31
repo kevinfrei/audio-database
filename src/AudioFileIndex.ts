@@ -376,7 +376,7 @@ export async function MakeAudioFileIndex(
       if (Type.isString(val) && pathCompare(val, relPath) === 0) {
         break;
       }
-      err(`songKey hash collision: "${songPath}"`);
+      err(`songKey hash collision: "${songPath}" with "${val || 'undefined'}"`);
       // Feed the old hash into the new hash to get a new value, cuz y not?
       hash = h32(songPath, hash).toNumber();
     }
