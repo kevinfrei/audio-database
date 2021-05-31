@@ -6,6 +6,7 @@ export {
   IsOnlyMetadata,
   MinimumMetadata,
 } from './DbMetadata';
+export { SearchResults } from './MusicSearch';
 
 export type VAType = '' | 'ost' | 'va';
 export type SongWithPath = Song & { path: string };
