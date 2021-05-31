@@ -242,7 +242,11 @@ export async function MakeAudioFileIndex(
         const split = songKeyText.split('\n');
         const vals = split
           .map((line): [number, string] => {
-            const sp = line.split(',', 2);
+            const firstComma = line.indexOf(',');
+            const sp = [
+              line.substr(0, firstComma),
+              line.substr(firstComma + 1),
+            ];
             if (Type.is2TupleOf(sp, Type.isString, Type.isString)) {
               const key = Type.asNumber(Number.parseInt(sp[0], 36), -1);
               return [key, sp[1]];
@@ -376,9 +380,9 @@ export async function MakeAudioFileIndex(
       if (Type.isString(val) && pathCompare(val, relPath) === 0) {
         break;
       }
-      err(`songKey hash collision: "${relPath}" with "${val || 'undefined'}"`);
+      // err(`songKey hash collision: "${relPath}" with "${val || 'undefined'}"`);
       // Feed the old hash into the new hash to get a new value, cuz y not?
-      err(`Location: ${data.location}`);
+      // err(`Location: ${data.location}`);
       hash = h32(songPath, hash).toNumber();
     }
     data.existingSongKeys.set(hash, relPath);
