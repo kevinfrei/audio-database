@@ -14,7 +14,7 @@
   "scripts": {
     "test": "jest --config jestconfig.json",
     "watch": "jest --config jestconfig.json --watch",
-    "build": "rimraf lib && tsc && minify -i lib",
+    "build": "rimraf lib && tsc",
     "prepare": "yarn run build",
     "prepublishOnly": "yarn test && yarn run lint",
     "format": "prettier --write \"src/**/*.ts\" \"*.md\" \"*.json\" \".vscode/*.json\"",
