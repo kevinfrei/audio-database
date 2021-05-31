@@ -48,36 +48,49 @@ export type FlatAudioDatabase = {
 };
 
 export type AudioDatabase = {
-  // General stuff
+  // Database API
+  getSong(key: SongKey): SongWithPath | void;
+  getAlbum(key: AlbumKey): Album | void;
+  getArtist(key: ArtistKey): Artist | void;
+  getSongFromPath(filepath: string): SongKey;
+  searchIndex(substring: boolean, term: string): SearchResults;
+
+  // Full File Index stuff
   addAudioFileIndex(idx: AudioFileIndex): Promise<boolean>;
   removeAudioFileIndex(idx: AudioFileIndex): Promise<boolean>;
+
+  // "Implied" File Index stuff
   addFileLocation(str: string): Promise<boolean>;
   removeFileLocation(str: string): Promise<boolean>;
   getLocations(): string[];
+
+  // Pictures
   getAlbumPicture(key: AlbumKey): Promise<Buffer | void>;
   setAlbumPicture(key: AlbumKey, filepath: string): Promise<void>;
   getArtistPicture(key: ArtistKey): Promise<Buffer | void>;
   setArtistPicture(key: ArtistKey, filepath: string): Promise<void>;
   getSongPicture(key: SongKey): Promise<Buffer | void>;
   setSongPicture(key: SongKey, filepath: string): Promise<void>;
-  addSongFromPath(filepath: string): void; // Some Testing
-  delSongByPath(filepath: string): boolean; // Some Testing
-  delSongByKey(key: SongKey): boolean; // Some Testing
+
+  // Not sure about exposing these three
+  // addSongFromPath(filepath: string): void; // Some Testing
+  // delSongByPath(filepath: string): boolean; // Some Testing
+  // delSongByKey(key: SongKey): boolean; // Some Testing
+
   // For all the 'parsed' data
   getFlatDatabase(): FlatAudioDatabase; // Some Testing
+
   // Loading from/saving to persistence
   load(): Promise<boolean>; // Some Testing
   save(): Promise<void>; // Some Testing
+
   // Updating
   refresh(): Promise<boolean>;
+
+  // Metadata
   updateMetadata(fullPath: string, newMetadata: Partial<FullMetadata>): boolean;
-  addOrUpdateSong(md: FullMetadata): void;
   getMetadata(fullPathOrKey: string): Promise<FullMetadata | void>;
-  // API
-  getSong(key: SongKey): SongWithPath | void;
-  getAlbum(key: AlbumKey): Album | void;
-  getArtist(key: ArtistKey): Artist | void;
-  searchIndex(substring: boolean, term: string): SearchResults;
+  // addOrUpdateSong(md: FullMetadata): void;
 };
 
 function normalizeName(n: string): string {
@@ -738,30 +751,40 @@ export async function MakeAudioDatabase(
   await load();
 
   return {
+    // Basic queries:
     getSong: (key: SongKey) => data.dbSongs.get(key),
     getArtist: (key: ArtistKey) => data.dbArtists.get(key),
     getAlbum: (key: AlbumKey) => data.dbAlbums.get(key),
+    getSongFromPath: getSongKey,
+    searchIndex,
+
+    // Song storage location management
     addAudioFileIndex,
     addFileLocation,
     removeAudioFileIndex,
     removeFileLocation,
     getLocations,
+
+    // Pictures
     getArtistPicture: getPicture,
     setArtistPicture: setPicture,
     getAlbumPicture: getPicture,
     setAlbumPicture: setPicture,
     getSongPicture: getPicture,
     setSongPicture: setPicture,
-    addSongFromPath,
-    addOrUpdateSong,
-    delSongByPath,
-    delSongByKey,
+
+    // addSongFromPath,
+    // addOrUpdateSong,
+    // delSongByPath,
+    // delSongByKey,
+
     getFlatDatabase,
-    getMetadata,
+
     load,
     save,
     refresh,
-    searchIndex,
+
+    getMetadata,
     updateMetadata,
   };
 }
