@@ -1,4 +1,3 @@
-/* eslint-disable no-underscore-dangle */
 import {
   DebouncedDelay,
   FreikTypeTag,
@@ -36,8 +35,7 @@ import {
   MinimumMetadata,
 } from './DbMetadata';
 
-// eslint-disable-next-line
-const log = MakeLogger('AudioFileIndex', true);
+const log = MakeLogger('AudioFileIndex');
 const err = MakeError('AudioFileIndex-err');
 
 type PathHandlerAsync = (pathName: string) => Promise<void>;
@@ -59,9 +57,9 @@ export type AudioFileIndex = {
   ): Promise<void>;
   updateMetadata(newMetadata: MinimumMetadata): void;
   getMetadataForSong(filePath: string): Promise<FullMetadata | void>;
-  setImageForSong(filePath: string, buf: Buffer): Promise<void>;
+  setImageForSong(filePathOrKey: SongKey | string, buf: Buffer): Promise<void>;
   getImageForSong(
-    filePath: string,
+    filePathOrKey: SongKey | string,
     preferInternal?: boolean,
   ): Promise<Buffer | void>;
   destroy(): void;
@@ -197,10 +195,10 @@ export async function MakeAudioFileIndex(
   /*
    * "member" data goes here
    */
-  const _location = PathUtil.trailingSlash(path.resolve(locationName));
+  const tmpLocation = PathUtil.trailingSlash(path.resolve(locationName));
   // IIFE
-  const _persist = await (async () => {
-    const pathName = path.join(_location, '.afi');
+  const tmpPersist = await (async () => {
+    const pathName = path.join(tmpLocation, '.afi');
     try {
       if (!(await isWritableDir(pathName))) {
         const str = await fsp.mkdir(pathName, { recursive: true });
@@ -225,19 +223,19 @@ export async function MakeAudioFileIndex(
     songList: new Array<string>(),
     picList: new Array<string>(),
     lastScanTime: ((): Date | null => null)(), // IIFE instead of a full type
-    location: _location,
+    location: tmpLocation,
     indexHashString: '',
-    persist: _persist,
+    persist: tmpPersist,
     fileIndex: await MakeFileIndex(
-      _location,
+      tmpLocation,
       watchTypes,
-      path.join(_persist.getLocation(), 'fileIndex.txt'),
+      path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
     ),
-    metadataCache: await GetMetadataStore(_persist, 'metadataCache'),
-    metadataOverride: await GetMetadataStore(_persist, 'metadataOverride'),
+    metadataCache: await GetMetadataStore(tmpPersist, 'metadataCache'),
+    metadataOverride: await GetMetadataStore(tmpPersist, 'metadataOverride'),
     // A hash table of h32's to path-names
     existingSongKeys: await (async () => {
-      const songKeyText = await _persist.getItemAsync('songKeys');
+      const songKeyText = await tmpPersist.getItemAsync('songKeys');
       if (Type.isString(songKeyText)) {
         const split = songKeyText.split('\n');
         const vals = split
@@ -261,7 +259,7 @@ export async function MakeAudioFileIndex(
     })(),
     pictures: await MakeBlobStore(
       (key: MediaKey) => ToPathSafeName(key),
-      path.join(_location, 'images'),
+      path.join(tmpLocation, 'images'),
     ),
     fileSystemPictures: new Map<string, string>(),
   };
@@ -292,7 +290,6 @@ export async function MakeAudioFileIndex(
     if (audioTypes(pathName)) {
       data.songList.push(pathName);
     } else {
-      // assert(imageTypes(pathName));
       data.picList.push(pathName);
     }
   });
@@ -325,7 +322,11 @@ export async function MakeAudioFileIndex(
   // or false if the thing isn't a songkey
   function getAFIKey(keyorpath: string): [number, number] | false {
     try {
-      if (keyorpath[0] === 'S') {
+      if (
+        keyorpath[0] === 'S' ||
+        keyorpath[0] === 'L' ||
+        keyorpath[0] === 'R'
+      ) {
         const split = keyorpath.indexOf(':');
         if (split > 1) {
           // If we've made it this far, the exception path is fine; odds are

@@ -24,7 +24,6 @@ import {
   SongKey,
 } from '@freik/media-core';
 import { MakePersistence, Persist } from '@freik/node-utils';
-import { promises as fsp } from 'fs';
 import path from 'path';
 import { h32 } from 'xxhashjs';
 import { SongWithPath, VAType } from '.';
@@ -37,7 +36,6 @@ import {
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
 
-// eslint-disable-next-line
 const log = MakeLogger('AudioDatabase');
 const err = MakeError('AudioDatabase-err');
 
@@ -66,11 +64,11 @@ export type AudioDatabase = {
 
   // Pictures
   getAlbumPicture(key: AlbumKey): Promise<Buffer | void>;
-  setAlbumPicture(key: AlbumKey, filepath: string): Promise<void>;
+  setAlbumPicture(key: AlbumKey, filepath: Buffer): Promise<void>;
   getArtistPicture(key: ArtistKey): Promise<Buffer | void>;
-  setArtistPicture(key: ArtistKey, filepath: string): Promise<void>;
+  setArtistPicture(key: ArtistKey, filepath: Buffer): Promise<void>;
   getSongPicture(key: SongKey): Promise<Buffer | void>;
-  setSongPicture(key: SongKey, filepath: string): Promise<void>;
+  setSongPicture(key: SongKey, filepath: Buffer): Promise<void>;
 
   // Not sure about exposing these three
   // addSongFromPath(filepath: string): void; // Some Testing
@@ -211,13 +209,14 @@ export async function MakeAudioDatabase(
     // TODO: Return the default picture?
   }
 
-  async function setPicture(key: MediaKey, filePath: string): Promise<void> {
+  async function setPicture(key: MediaKey, buf: Buffer): Promise<void> {
     // TODO: This is *not* correct for non-Song keys.
     // Need more capabilities from AFI
     const afi = GetIndexForKey(key);
-    if (afi && isSongKey(key)) {
-      const buf = await fsp.readFile(filePath);
-      await afi.setImageForSong(key, buf);
+    if (afi) {
+      if (isSongKey(key)) {
+        await afi.setImageForSong(key, buf);
+      }
     }
   }
 
