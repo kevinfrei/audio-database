@@ -154,8 +154,34 @@ it('Query a reasonably sized database', async () => {
       }
     }
   }
+  expect(await db.refresh()).toBeTruthy();
+  const newFlat = db.getFlatDatabase();
+  expect(newFlat).toEqual(flat);
 });
-
+it('Rebuilding a DB after initial creation', async () => {
+  const db = await MakeAudioDatabase(persist);
+  expect(db).toBeDefined();
+  expect(
+    await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
+  ).toBeTruthy();
+  expect(await db.refresh()).toBeTruthy();
+  const flat = db.getFlatDatabase();
+  expect(flat).toBeDefined();
+  expect(flat.songs.length).toEqual(735);
+  expect(await db.refresh()).toBeTruthy();
+  const newFlat = db.getFlatDatabase();
+  expect(newFlat.songs.length).toEqual(735);
+  expect(
+    await db.removeFileLocation('./src/__tests__/NotActuallyFiles'),
+  ).toBeTruthy();
+  expect(
+    await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
+  ).toBeTruthy();
+  expect(await db.refresh()).toBeTruthy();
+  const finalFlat = db.getFlatDatabase();
+  expect(finalFlat).toBeDefined();
+  expect(finalFlat.songs.length).toEqual(735);
+});
 /*
  it('Add individual file to the db', async () => {
   const db = await MakeAudioDatabase(persist);

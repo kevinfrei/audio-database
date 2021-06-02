@@ -23,7 +23,7 @@ import {
   MediaKey,
   SongKey,
 } from '@freik/media-core';
-import { MakePersistence, Persist } from '@freik/node-utils';
+import { MakePersistence, PathUtil, Persist } from '@freik/node-utils';
 import path from 'path';
 import { h32 } from 'xxhashjs';
 import { SongWithPath, VAType } from '.';
@@ -555,14 +555,16 @@ export async function MakeAudioDatabase(
     return true;
   }
   async function addFileLocation(filePath: string): Promise<boolean> {
+    const thePath = PathUtil.trailingSlash(path.resolve(filePath));
     const afi = await MakeAudioFileIndex(
-      filePath,
-      h32(filePath, 0xdeadbeef).toNumber(),
+      thePath,
+      h32(thePath, 0xdeadbeef).toNumber(),
     );
     return await addAudioFileIndex(afi);
   }
-  async function removeFileLocation(filepath: string): Promise<boolean> {
-    const res = data.dbAudioIndices.delete(filepath);
+  async function removeFileLocation(filePath: string): Promise<boolean> {
+    const thePath = PathUtil.trailingSlash(path.resolve(filePath));
+    const res = data.dbAudioIndices.delete(thePath);
     if (res) {
       return await refresh();
     }
