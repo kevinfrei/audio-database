@@ -1,6 +1,6 @@
 {
   "name": "audio-database",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "NodeJS Audio/Music database",
   "author": "Kevin Frei <kevinfrei@hotmail.com>",
   "license": "Unlicense",
