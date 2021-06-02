@@ -342,6 +342,8 @@ export async function MakeAudioFileIndex(
     return false;
   }
 
+  // TODO: This duplicates the core index: Let's move what we can to this file
+  // to minimize duplicate data
   async function saveExistingSongKeys(): Promise<void> {
     const val = [...data.existingSongKeys.entries()]
       .map(([n, s]) => n.toString(36) + ',' + s)

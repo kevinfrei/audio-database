@@ -174,6 +174,8 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(
     await db.removeFileLocation('./src/__tests__/NotActuallyFiles'),
   ).toBeTruthy();
+  const emptyFlat = db.getFlatDatabase();
+  expect(emptyFlat).toEqual({ songs: [], albums: [], artists: [] });
   expect(
     await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
   ).toBeTruthy();

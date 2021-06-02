@@ -448,7 +448,6 @@ export async function MakeAudioDatabase(
       err(`Unabled to delete the song:${theSong.title}`);
       return false;
     }
-    const artists = new Set([...theSong.artistIds, ...theSong.secondaryIds]);
     // Remove the song from the album
     const theAlbum = data.dbAlbums.get(theSong.albumId);
     if (theAlbum) {
@@ -456,27 +455,24 @@ export async function MakeAudioDatabase(
       if (theEntry >= 0) {
         theAlbum.songs.splice(theEntry, 1);
         if (theAlbum.songs.length === 0) {
-          // Delete the album (shouldn't need to remove artists)
+          // Delete the album (shouldn't need to remove artists?)
           if (!data.dbAlbums.delete(theAlbum.key)) {
             err(`Unable to delete the artist ${theAlbum.title}`);
           }
           // Delete the album from the name index
-          const nameElem = data.albumTitleIndex.get(
-            normalizeName(theAlbum.title),
-          );
+          const normAlbumTitle = normalizeName(theAlbum.title);
+          const nameElem = data.albumTitleIndex.get(normAlbumTitle);
           if (nameElem === undefined) {
             err(`Unable to find ${theAlbum.title} in the title index`);
           } else {
-            data.albumTitleIndex.remove(
-              normalizeName(theAlbum.title),
-              theAlbum.key,
-            );
+            data.albumTitleIndex.remove(normAlbumTitle, theAlbum.key);
           }
         }
       } else {
         err(`Can't remove song ${theSong.title} from album ${theAlbum.title}`);
       }
     }
+    const artists = new Set([...theSong.artistIds, ...theSong.secondaryIds]);
     for (const artistKey of artists) {
       const theArtist = data.dbArtists.get(artistKey);
       if (theArtist) {
@@ -484,30 +480,58 @@ export async function MakeAudioDatabase(
         if (theEntry >= 0) {
           theArtist.songs.splice(theEntry, 1);
           if (theArtist.songs.length === 0) {
-            if (
-              theArtist.albums.length !== 1 &&
-              theArtist.albums[0] !== theSong.albumId
-            ) {
-              err(`${theArtist.name} still has albums, which seems wrong`);
-            }
             if (!data.dbArtists.delete(theArtist.key)) {
               err(`Unable to delete the artist ${theArtist.name}`);
             }
+            // Remove the artist from the artist name index
             if (!data.artistNameIndex.delete(normalizeName(theArtist.name))) {
               err(
                 `Unable to delete the artist ${theArtist.name} from name index`,
               );
             }
+          } else {
+            // Having removed the song, we still need to check all the
+            // albums to see if there are songs on those albums that have this
+            // artist. If not, remove the artist from those album lists
+            for (const albKey of theArtist.albums) {
+              const album = data.dbAlbums.get(albKey);
+              if (!album) {
+                // This must be the album that was already removed, yes?
+                continue;
+              }
+              let removeFromAlbum = true;
+              for (const k of album.songs) {
+                const sng = data.dbSongs.get(k);
+                if (!sng) {
+                  err(`Unable to get song ${k} for album ${album.title}`);
+                  continue;
+                }
+                if (
+                  sng.artistIds.indexOf(artistKey) >= 0 ||
+                  sng.secondaryIds.indexOf(artistKey) >= 0
+                ) {
+                  removeFromAlbum = false;
+                  break;
+                }
+              }
+              // We didn't find a song on this album with this artist
+              // Go ahead and remove the artist from the album list
+              if (removeFromAlbum) {
+                const albIdx = album.primaryArtists.indexOf(theArtist.key);
+                if (albIdx >= 0) {
+                  album.primaryArtists.splice(albIdx, 1);
+                }
+              }
+            }
           }
         } else {
-          err(
-            `Can't remove song ${theSong.title} from artist ${theArtist.name}`,
-          );
+          err(`Can't remove the song ${theSong.title} from ${theArtist.name}`);
         }
       } else {
-        err(`Can't find the album for the song ${theSong.title}`);
+        err(`Can't find artist ${artistKey} for song ${theSong.title}`);
       }
     }
+
     return true;
   }
 
@@ -554,6 +578,7 @@ export async function MakeAudioDatabase(
     await idx.forEachAudioFile(addSongFromPath);
     return true;
   }
+
   async function addFileLocation(filePath: string): Promise<boolean> {
     const thePath = PathUtil.trailingSlash(path.resolve(filePath));
     const afi = await MakeAudioFileIndex(
@@ -562,18 +587,22 @@ export async function MakeAudioDatabase(
     );
     return await addAudioFileIndex(afi);
   }
+
   async function removeFileLocation(filePath: string): Promise<boolean> {
     const thePath = PathUtil.trailingSlash(path.resolve(filePath));
-    const res = data.dbAudioIndices.delete(thePath);
-    if (res) {
-      return await refresh();
+    const theIdx = data.dbAudioIndices.get(thePath);
+    if (!theIdx) {
+      return false;
     }
-    return false;
+    await theIdx.forEachAudioFile(delSongByPath);
+    return data.dbAudioIndices.delete(thePath);
   }
+
   async function removeAudioFileIndex(idx: AudioFileIndex): Promise<boolean> {
     const filepath = idx.getLocation();
     return await removeFileLocation(filepath);
   }
+
   function getLocations(): string[] {
     return [...data.dbAudioIndices.keys()];
   }
@@ -644,6 +673,9 @@ export async function MakeAudioDatabase(
 
   // Run a full rescan, dealing with new files/deletion of old files
   async function refresh(): Promise<boolean> {
+    // TODO:
+    // BUG: This only adds/removes stuff in existing AFI's. It's the wrong
+    // thing to call when you've added or removed an entier AFI.
     if (await singleWaiter.wait()) {
       try {
         await Promise.all(
