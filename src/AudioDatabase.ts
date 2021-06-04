@@ -145,16 +145,15 @@ function newAlbumKey(
   return `L${ToU8(hashNum)}`;
 }
 
+// Make sure we've got the disk name array filled in (at least with empties)
 function EnsureDiskNums(album: Album, diskNum?: number, diskName?: string) {
   if (Type.isNumber(diskNum)) {
     if (!Type.has(album, 'diskNames') || !Type.isArray(album.diskNames)) {
       album.diskNames = [];
     }
-    if (Type.has(album, 'diskNames') && Type.isArray(album.diskNames)) {
-      for (let i = 0; i <= diskNum; i++) {
-        if (!Type.isString(album.diskNames[i])) {
-          album.diskNames[i] = i === diskNum ? diskName || '' : '';
-        }
+    for (let i = 0; i < diskNum; i++) {
+      if (!Type.isString(album.diskNames[i])) {
+        album.diskNames[i] = i + 1 === diskNum ? diskName || '' : '';
       }
     }
   }
@@ -313,12 +312,13 @@ export async function MakeAudioDatabase(
         if (!anotherSong) {
           continue;
         }
-        /*
-        This makes things mess up a bit, so let's not do it...
+
+        // TODO: This is an old comment that needs investigation:
+        // This makes things mess up a bit, apparently:
         if (path.dirname(anotherSong.path) !== dirName) {
           continue;
         }
-        */
+
         // Check to see if there's a common subset of artists
         const commonArtists = Operations.ArrayIntersection(
           check.primaryArtists,
@@ -435,6 +435,8 @@ export async function MakeAudioDatabase(
       secondaryIds,
       md.vaType || '',
       path.dirname(md.originalPath),
+      md.disk,
+      md.diskName,
     );
     const theSong: SongWithPath = {
       path: md.originalPath,

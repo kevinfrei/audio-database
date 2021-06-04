@@ -1,3 +1,4 @@
+import { Type } from '@freik/core-utils';
 import { ArrayIntersection } from '@freik/core-utils/lib/Operations';
 import { Album, Artist } from '@freik/media-core';
 import { MakePersistence } from '@freik/node-utils';
@@ -29,7 +30,7 @@ it('Query a reasonably sized database', async () => {
 
   // Some basic stupidity:
   expect(flat.songs.length).toEqual(735);
-  expect(flat.albums.length).toEqual(185);
+  expect(flat.albums.length).toEqual(188);
   expect(flat.artists.length).toEqual(271);
 
   // More basic stupidity:
@@ -86,18 +87,22 @@ it('Query a reasonably sized database', async () => {
   }
   let unsorted: Album | null = null;
   let axemas: Album | null = null;
+  let various: Album[] = [];
   // Check for album back-pointers
   for (const album of flat.albums) {
     // Artist sanity checks
     if (album.vatype) {
       expect(album.primaryArtists.length).toEqual(0);
       // Let's check for a couple albums with multiple disks
-      if (album.title === 'Unsorted' && unsorted !== null) {
+      if (album.title === 'Unsorted' && unsorted === null) {
         unsorted = album;
-      } else if (album.title == 'Merry Axemas' && axemas !== null) {
+      } else if (album.title === 'Merry Axemas' && axemas === null) {
         axemas = album;
       }
     } else {
+      if (album.title === 'Various') {
+        various.push(album);
+      }
       for (const artistKey of album.primaryArtists) {
         const artist = db.getArtist(artistKey);
         expect(artist).toBeDefined();
@@ -143,15 +148,44 @@ it('Query a reasonably sized database', async () => {
   expect(await db.refresh()).toBeTruthy();
   const newFlat = db.getFlatDatabase();
   expect(newFlat).toEqual(flat);
+  // A bunch of diskName checks:
   expect(unsorted).toBeDefined();
-  //  if (!unsorted) throw Error('nope');
-
-  expect(unsorted!.diskNames).toBeDefined();
-
-  expect(unsorted!.diskNames!.length).toEqual(3);
-  expect(unsorted!.diskNames![1]).toEqual('');
-  expect(unsorted!.diskNames![2]).toEqual('');
+  if (!unsorted) throw Error('nope');
+  expect(unsorted.diskNames).toBeDefined();
+  if (!unsorted.diskNames) throw Error('nope');
+  expect(unsorted.diskNames.length).toEqual(2);
+  expect(unsorted.diskNames[0]).toEqual('Some Stuff');
+  expect(unsorted.diskNames[1]).toEqual('Other Stuff');
+  expect(axemas).toBeDefined();
+  if (!axemas) throw Error('nope');
+  expect(axemas.diskNames).toBeDefined();
+  if (!axemas.diskNames) throw Error('nope');
+  expect(axemas.diskNames.length).toEqual(2);
+  expect(axemas.diskNames).toEqual(['', '']);
+  expect(various.length).toEqual(3);
+  const va = various.filter((alb) => Type.isArrayOfString(alb.diskNames));
+  expect(va.length).toEqual(1);
+  const alb = va[0];
+  expect(alb.diskNames).toBeDefined();
+  if (!alb.diskNames) throw Error('nope');
+  expect(alb.diskNames).toEqual(['', 'moar']);
+  let disk0 = 0;
+  let disk2 = 0;
+  for (const sngKey of alb.songs) {
+    const sng = db.getSong(sngKey);
+    expect(sng).toBeDefined();
+    if (!sng) throw Error('nope');
+    // Only 0-99 or 200+, no 100's
+    const disk = Math.floor(sng.track / 100);
+    expect(disk).not.toEqual(1);
+    if (disk === 0) disk0++;
+    else if (disk === 2) disk2++;
+    else expect(disk).toEqual(-1234);
+  }
+  expect(disk0).toEqual(9);
+  expect(disk2).toEqual(7);
 });
+
 it('Rebuilding a DB after initial creation', async () => {
   const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
