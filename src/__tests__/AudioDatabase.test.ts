@@ -29,7 +29,7 @@ it('Query a reasonably sized database', async () => {
 
   // Some basic stupidity:
   expect(flat.songs.length).toEqual(735);
-  expect(flat.albums.length).toEqual(187);
+  expect(flat.albums.length).toEqual(185);
   expect(flat.artists.length).toEqual(271);
 
   // More basic stupidity:
@@ -84,11 +84,19 @@ it('Query a reasonably sized database', async () => {
       expect(artist.songs.indexOf(song.key)).toBeGreaterThan(-1);
     }
   }
+  let unsorted: Album | null = null;
+  let axemas: Album | null = null;
   // Check for album back-pointers
   for (const album of flat.albums) {
     // Artist sanity checks
     if (album.vatype) {
       expect(album.primaryArtists.length).toEqual(0);
+      // Let's check for a couple albums with multiple disks
+      if (album.title === 'Unsorted' && unsorted !== null) {
+        unsorted = album;
+      } else if (album.title == 'Merry Axemas' && axemas !== null) {
+        axemas = album;
+      }
     } else {
       for (const artistKey of album.primaryArtists) {
         const artist = db.getArtist(artistKey);
@@ -135,6 +143,14 @@ it('Query a reasonably sized database', async () => {
   expect(await db.refresh()).toBeTruthy();
   const newFlat = db.getFlatDatabase();
   expect(newFlat).toEqual(flat);
+  expect(unsorted).toBeDefined();
+  //  if (!unsorted) throw Error('nope');
+
+  expect(unsorted!.diskNames).toBeDefined();
+
+  expect(unsorted!.diskNames!.length).toEqual(3);
+  expect(unsorted!.diskNames![1]).toEqual('');
+  expect(unsorted!.diskNames![2]).toEqual('');
 });
 it('Rebuilding a DB after initial creation', async () => {
   const db = await MakeAudioDatabase(persist);

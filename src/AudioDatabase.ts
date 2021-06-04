@@ -145,6 +145,21 @@ function newAlbumKey(
   return `L${ToU8(hashNum)}`;
 }
 
+function EnsureDiskNums(album: Album, diskNum?: number, diskName?: string) {
+  if (Type.isNumber(diskNum)) {
+    if (!Type.has(album, 'diskNames') || !Type.isArray(album.diskNames)) {
+      album.diskNames = [];
+    }
+    if (Type.has(album, 'diskNames') && Type.isArray(album.diskNames)) {
+      for (let i = 0; i <= diskNum; i++) {
+        if (!Type.isString(album.diskNames[i])) {
+          album.diskNames[i] = i === diskNum ? diskName || '' : '';
+        }
+      }
+    }
+  }
+}
+
 export async function MakeAudioDatabase(
   localStorageLocation: string | Persist,
   audioKey?: string,
@@ -260,6 +275,8 @@ export async function MakeAudioDatabase(
     secondaryArtists: ArtistKey[],
     vatype: VAType,
     dirName: string,
+    diskNum?: number,
+    diskName?: string,
   ): Album {
     const sharedNames =
       data.albumTitleIndex.get(normalizeName(title)) || new Set<AlbumKey>();
@@ -284,6 +301,7 @@ export async function MakeAudioDatabase(
       }
       // For VA type albums, we can ignore the artist list
       if (check.vatype === vatype && vatype.length > 0) {
+        EnsureDiskNums(check, diskNum, diskName);
         return check;
       }
       // Set equality...
@@ -342,6 +360,7 @@ export async function MakeAudioDatabase(
               demoteArtists(sng.artistIds, sng.secondaryIds);
             }
           }
+          EnsureDiskNums(check, diskNum, diskName);
           return check;
         }
         if (false) {
@@ -354,6 +373,7 @@ export async function MakeAudioDatabase(
         }
         check.vatype = 'va';
         check.primaryArtists = [];
+        EnsureDiskNums(check, diskNum, diskName);
         return check;
       }
       // If we're here, we've found the album we're looking for
@@ -369,6 +389,7 @@ export async function MakeAudioDatabase(
         }
         thisArtist.albums.push(check.key);
       }
+      EnsureDiskNums(check, diskNum, diskName);
       return check;
     }
     // If we've reached this code, we need to create a new album
@@ -389,6 +410,7 @@ export async function MakeAudioDatabase(
     };
     data.albumTitleIndex.set(normalizeName(title), key);
     data.dbAlbums.set(key, album);
+    EnsureDiskNums(album, diskNum, diskName);
     return album;
   }
 
