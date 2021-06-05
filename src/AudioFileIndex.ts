@@ -1,13 +1,13 @@
 import {
   DebouncedDelay,
   FreikTypeTag,
-  FromU8,
+  FromB64,
   MakeError,
   MakeLogger,
   MakeMultiMap,
   MaybeWait,
+  ToB64,
   ToPathSafeName,
-  ToU8,
   Type,
 } from '@freik/core-utils';
 import {
@@ -127,17 +127,17 @@ function addIndex(
   location: string,
   index: AudioFileIndex,
 ): string {
-  let u8 = ToU8(hashValue);
-  while (indexKeyLookup.has(u8)) {
-    const idx = indexKeyLookup.get(u8);
+  let b64 = ToB64(hashValue);
+  while (indexKeyLookup.has(b64)) {
+    const idx = indexKeyLookup.get(b64);
     if (idx === index) {
-      return u8;
+      return b64;
     }
     // There's a hash conflict :/
     hashValue = h32(hashValue).update(location).digest().toNumber();
-    u8 = ToU8(hashValue);
+    b64 = ToB64(hashValue);
   }
-  indexKeyLookup.set(u8, index);
+  indexKeyLookup.set(b64, index);
   let i = 0;
   for (; i < lengthSortedPaths.length; i++) {
     if (lengthSortedPaths[i].location.length >= i) {
@@ -145,7 +145,7 @@ function addIndex(
     }
   }
   lengthSortedPaths.splice(i, 0, { location, index });
-  return u8;
+  return b64;
 }
 
 // Remove the idnex from the location list
@@ -333,8 +333,8 @@ export async function MakeAudioFileIndex(
           // it's a song key, so it's not likely to raise an exception
           // Windows paths won't match, because we're not allowing a colon
           // at index 1: It has to be greater than index 1
-          const indexNum = FromU8(keyorpath.substring(1, split));
-          const keyNum = FromU8(keyorpath.substring(split + 1));
+          const indexNum = FromB64(keyorpath.substring(1, split));
+          const keyNum = FromB64(keyorpath.substring(split + 1));
           return [indexNum, keyNum];
         }
       }
@@ -359,7 +359,7 @@ export async function MakeAudioFileIndex(
       const keyData = getAFIKey(keyorpath);
       if (
         keyData !== false &&
-        ToU8(keyData[0]) === data.indexHashString &&
+        ToB64(keyData[0]) === data.indexHashString &&
         data.existingSongKeys.has(keyData[1])
       ) {
         const relPath = data.existingSongKeys.get(keyData[1]);
@@ -390,7 +390,7 @@ export async function MakeAudioFileIndex(
     }
     data.existingSongKeys.set(hash, relPath);
     saveSongKeys();
-    return `S${data.indexHashString}:${ToU8(hash)}`;
+    return `S${data.indexHashString}:${ToB64(hash)}`;
   }
 
   function updateList(

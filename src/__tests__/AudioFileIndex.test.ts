@@ -1,4 +1,4 @@
-import { ToU8 } from '@freik/core-utils';
+import { ToB64 } from '@freik/core-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
@@ -41,7 +41,7 @@ it('Some basic AudioFileIndex tests', async () => {
     count++;
   });
   expect(count).toEqual(6);
-  expect(afi.getHashForIndex()).toEqual(ToU8(0x1badcafe));
+  expect(afi.getHashForIndex()).toEqual(ToB64(0x1badcafe));
   expect(afi.getLocation()).toEqual(
     path.resolve('src/__tests__/audiofileindex') + '/',
   );
@@ -49,7 +49,7 @@ it('Some basic AudioFileIndex tests', async () => {
     "Test Artist - 2010 - Test Album/01 - This isn't actually an mp3.mp3";
   const fullPath = path.join(afi.getLocation(), songPathName);
   const theKey = afi.makeSongKey(fullPath);
-  expect(theKey).toMatch(/^S[^a-z0-9A-Z]+:[^a-z0-9A-Z]+$/);
+  expect(theKey).toMatch(/^S[+/a-z0-9A-Z]+:[+/a-z0-9A-Z]+$/);
   songKey = theKey;
   const md = await afi.getMetadataForSong(fullPath);
   expect(md).toEqual({

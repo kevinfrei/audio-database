@@ -7,7 +7,7 @@ import {
   MultiMap,
   Operations,
   Pickle,
-  ToU8,
+  ToB64,
   Type,
   Unpickle,
 } from '@freik/core-utils';
@@ -119,7 +119,7 @@ function newArtistKey(artistName: string): string {
     hashNum = h32(hashNum).update(name).digest().toNumber();
   }
   artistHash.set(hashNum, name);
-  return `R${ToU8(hashNum)}`;
+  return `R${ToB64(hashNum)}`;
 }
 
 const albumHash = new Map<number, string>();
@@ -142,7 +142,7 @@ function newAlbumKey(
     hashNum = h32(hashNum).update(artistSummary).digest().toNumber();
   }
   artistHash.set(hashNum, artistSummary);
-  return `L${ToU8(hashNum)}`;
+  return `L${ToB64(hashNum)}`;
 }
 
 // Make sure we've got the disk name array filled in (at least with empties)
