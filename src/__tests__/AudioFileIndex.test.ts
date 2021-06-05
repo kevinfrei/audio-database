@@ -1,4 +1,4 @@
-import { ToB64 } from '@freik/core-utils';
+import { ToB64, Type } from '@freik/core-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
@@ -12,7 +12,11 @@ export async function remove(name: string) {
 export async function removeDir(name: string) {
   try {
     await fsp.rm(name, { recursive: true });
-  } catch (e) {}
+  } catch (e) {
+    if (!Type.hasStr(e, 'code') || e.code !== 'ENOENT') {
+      console.error(e);
+    }
+  }
 }
 
 async function cleanup() {
@@ -52,6 +56,7 @@ it('Some basic AudioFileIndex tests', async () => {
   expect(theKey).toMatch(/^S[+/a-z0-9A-Z]+:[+/a-z0-9A-Z]+$/);
   songKey = theKey;
   const md = await afi.getMetadataForSong(fullPath);
+  // This one is flaky, not sure why...
   expect(md).toEqual({
     album: 'Test Album',
     artist: 'Test Artist',
