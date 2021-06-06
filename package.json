@@ -14,7 +14,7 @@
   "scripts": {
     "test": "jest --config jestconfig.json",
     "watch": "jest --config jestconfig.json --watch",
-    "build": "rimraf lib && tsc && minify -i lib",
+    "build": "rimraf lib && tsc && minify -i -r lib",
     "prepare": "yarn run build",
     "postpublish": "pinst --enable",
     "prepublishOnly": "yarn test && yarn run lint && pinst --disable",
