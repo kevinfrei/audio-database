@@ -152,7 +152,15 @@ function EnsureDiskNums(album: Album, diskNum?: number, diskName?: string) {
       album.diskNames = [];
     }
     for (let i = 0; i < diskNum; i++) {
-      if (!Type.isString(album.diskNames[i])) {
+      // Fill in disk names. If we're creating new disk names, make them empty
+      // If we've already got an empty disk name, update it to a "correct" disk
+      // name if we see one
+      if (
+        !Type.isString(album.diskNames[i]) ||
+        (album.diskNames[i].length === 0 &&
+          Type.isString(diskName) &&
+          diskName.length > 0)
+      ) {
         album.diskNames[i] = i + 1 === diskNum ? diskName || '' : '';
       }
     }
