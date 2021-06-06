@@ -23,6 +23,7 @@
     "version": "yarn run format && git add -A src",
     "postversion": "git push && git push --tags --no-verify",
     "compile": "tsc --noEmit",
+    "linecount": "git ls-files|grep \"\\.\\(css\\|ts\\)$\"|grep -v \"__\\|\\.d\\.ts\"|xargs wc -l",
     "chk": "yarn lint && yarn compile && yarn test"
   },
   "dependencies": {
