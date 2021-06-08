@@ -4,9 +4,8 @@ import {
   OnlyOneActive,
   Type,
 } from '@freik/core-utils';
-import { FileUtil, PathUtil } from '@freik/node-utils';
+import { FileUtil, PathUtil as path } from '@freik/node-utils';
 import { promises as fs } from 'fs';
-import path from 'path';
 import { h64 } from 'xxhashjs';
 
 export type BlobStore<T> = {
@@ -23,7 +22,7 @@ export async function MakeBlobStore<T>(
   storeLocation: string,
 ): Promise<BlobStore<T>> {
   // The directory of the blob store
-  const blobStoreDir = PathUtil.trailingSlash(path.resolve(storeLocation));
+  const blobStoreDir = path.trailingSlash(path.resolve(storeLocation));
   // The index of string-keys to blob files
   const blobIndex = path.join(blobStoreDir, 'index.txt');
   // We're using Sequence Numbers for blob names

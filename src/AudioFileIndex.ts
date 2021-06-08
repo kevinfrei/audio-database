@@ -21,12 +21,12 @@ import { Covers, Metadata } from '@freik/media-utils';
 import {
   MakePersistence,
   MakeSuffixWatcher,
-  PathUtil,
+  PathUtil as path,
 } from '@freik/node-utils';
 import { hideFile } from '@freik/node-utils/lib/file';
 import { MakeFileIndex, pathCompare } from '@freik/node-utils/lib/FileIndex';
 import { constants as FS_CONST, promises as fsp } from 'fs';
-import path from 'path';
+import { isAbsolute } from 'path';
 import { h32 } from 'xxhashjs';
 import { MakeBlobStore } from './BlobStore';
 import {
@@ -195,7 +195,7 @@ export async function MakeAudioFileIndex(
   /*
    * "member" data goes here
    */
-  const tmpLocation = PathUtil.trailingSlash(path.resolve(locationName));
+  const tmpLocation = path.trailingSlash(path.resolve(locationName));
   // IIFE
   const tmpPersist = await (async () => {
     const pathName = path.join(tmpLocation, '.afi');
@@ -313,7 +313,7 @@ export async function MakeAudioFileIndex(
 
   // From a (possibly) relative path, get something we can read data from
   function getFullPath(relPath: string): string {
-    return path.isAbsolute(relPath)
+    return isAbsolute(path.xplat(relPath))
       ? path.resolve(relPath)
       : path.resolve(path.join(data.location, relPath));
   }
