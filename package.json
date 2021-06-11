@@ -28,7 +28,7 @@
     "chk": "yarn lint && yarn compile && yarn test"
   },
   "dependencies": {
-    "@freik/core-utils": "^0.25.0",
+    "@freik/core-utils": "^0.27.0",
     "@freik/media-core": "^0.6.1",
     "@freik/media-utils": "^0.12.2",
     "@freik/node-utils": "^0.15.0",

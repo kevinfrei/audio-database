@@ -112,44 +112,21 @@ const fullMetadataKeys: Map<string, (obj: unknown) => boolean> = new Map<
   ['diskName', Type.isString],
 ]);
 
-const mandatoryMetadataKeys: string[] = [
+const mandatoryMetadataKeys = new Set([
   'originalPath',
   'artist',
   'album',
   'track',
   'title',
-];
+]);
 
 // Checks to make sure obj is a Partial<FullMetadata>
 export function IsOnlyMetadata(obj: unknown): obj is MinimumMetadata {
-  if (!Type.isObjectNonNull(obj)) {
-    err("object isn't non-null");
-    err(obj);
-    return false;
-  }
-  for (const fieldName of Object.keys(obj)) {
-    if (obj[fieldName] === undefined || obj[fieldName] === null) {
-      delete obj[fieldName];
-      continue;
-    }
-    const fieldTypeChecker = fullMetadataKeys.get(fieldName);
-    if (!fieldTypeChecker) {
-      err(`Object has unknown field ${fieldName}`);
-      err(obj);
-      return false;
-    }
-    if (!fieldTypeChecker(obj[fieldName])) {
-      err(`object failure for ${fieldName}:`);
-      err(obj);
-      err(
-        `Type check result: ${
-          fieldTypeChecker(obj[fieldName]) ? 'true' : 'false'
-        }`,
-      );
-      return false;
-    }
-  }
-  return Type.hasStr(obj, 'originalPath');
+  Type.cleanseKeys(obj);
+  return (
+    Type.isSpecificType<MinimumMetadata>(obj, fullMetadataKeys) &&
+    Type.hasStr(obj, 'originalPath')
+  );
 }
 type StringMap = { [index: string]: undefined | string | number | string[] };
 
@@ -182,15 +159,8 @@ function minMetadataEqual(a: MinimumMetadata, b: MinimumMetadata): boolean {
 }
 
 export function IsFullMetadata(obj: unknown): obj is FullMetadata {
-  if (!IsOnlyMetadata(obj)) {
-    return false;
-  }
-  for (const fieldName of mandatoryMetadataKeys) {
-    if (!Type.has(obj, fieldName)) {
-      return false;
-    }
-  }
-  return true;
+  Type.cleanseKeys(obj);
+  return Type.isSpecificType(obj, fullMetadataKeys, mandatoryMetadataKeys);
 }
 
 function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
