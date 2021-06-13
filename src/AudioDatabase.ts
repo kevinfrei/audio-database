@@ -706,7 +706,7 @@ export async function MakeAudioDatabase(
   async function refresh(): Promise<boolean> {
     // TODO:
     // BUG: This only adds/removes stuff in existing AFI's. It's the wrong
-    // thing to call when you've added or removed an entier AFI.
+    // thing to call when you've added or removed an entire AFI.
     if (await singleWaiter.wait()) {
       try {
         await Promise.all(
