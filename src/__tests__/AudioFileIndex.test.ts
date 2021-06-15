@@ -4,6 +4,8 @@ import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
 
+jest.useFakeTimers();
+
 export async function remove(name: string) {
   try {
     await fsp.rm(name);
@@ -29,7 +31,17 @@ async function cleanup() {
 }
 
 beforeAll(cleanup);
-afterAll(cleanup);
+afterAll(async () => {
+  await cleanup();
+  return new Promise((resolve) => {
+    // eslint-disable-next-line no-restricted-globals
+    setTimeout(cleanup, 100);
+    // eslint-disable-next-line no-restricted-globals
+    setTimeout(resolve, 200);
+    jest.runAllTimers();
+  });
+});
+
 let songKey = '';
 
 it('Some basic AudioFileIndex tests', async () => {
@@ -129,7 +141,7 @@ it('AudioFileIndex change detection', async () => {
   const songPathName =
     'Test Artist - 2010 - Test Album/04 - New File Not There.mp3';
   const fullPath = path.join(afi.getLocation(), songPathName);
-  await FileUtil.arrayToTextFileAsync([''], fullPath);
+  await FileUtil.arrayToTextFileAsync(['-'], fullPath);
   // Make sure that our metadata changes from the previous test sticks
   await afi.rescanFiles();
   const newMd = await afi.getMetadataForSong(fullPath);

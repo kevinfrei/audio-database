@@ -6,17 +6,27 @@ import { MakeAudioDatabase } from '../AudioDatabase';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
 import { remove, removeDir } from './AudioFileIndex.test';
 
+jest.useFakeTimers();
+
 const persist = MakePersistence('./src/__tests__/persist-basic/');
 
-// Initialization if we need anything
-beforeAll(() => {
-  removeDir('./src/__tests__/NotActuallyFiles/.afi');
-});
-
-afterAll(async () => {
-  // Clean-up after the test
+async function cleanup() {
   remove('./src/__tests__/persist-basic/test.json');
   removeDir('./src/__tests__/NotActuallyFiles/.afi');
+}
+
+// Initialization if we need anything
+beforeAll(cleanup);
+
+afterAll(async () => {
+  await cleanup();
+  return new Promise((resolve) => {
+    // eslint-disable-next-line no-restricted-globals
+    setTimeout(cleanup, 100);
+    // eslint-disable-next-line no-restricted-globals
+    setTimeout(resolve, 200);
+    jest.runAllTimers();
+  });
 });
 
 it('Query a reasonably sized database', async () => {
