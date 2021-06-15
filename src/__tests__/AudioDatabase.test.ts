@@ -1,7 +1,7 @@
 import { Type } from '@freik/core-utils';
 import { ArrayIntersection } from '@freik/core-utils/lib/Operations';
 import { Album, Artist } from '@freik/media-core';
-import { MakePersistence } from '@freik/node-utils';
+import { FileUtil, MakePersistence } from '@freik/node-utils';
 import { MakeAudioDatabase } from '../AudioDatabase';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
 import { remove, removeDir } from './AudioFileIndex.test';
@@ -12,6 +12,9 @@ const persist = MakePersistence('./src/__tests__/persist-basic/');
 
 async function cleanup() {
   remove('./src/__tests__/persist-basic/test.json');
+  remove(
+    './src/__tests__/NotActuallyFiles/Yello - 1985 - Stella/01 - Test.flac',
+  );
   removeDir('./src/__tests__/NotActuallyFiles/.afi');
 }
 
@@ -218,7 +221,14 @@ it('Rebuilding a DB after initial creation', async () => {
     await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
   ).toBeTruthy();
   expect(await db.refresh()).toBeTruthy();
+  const anotherFlat = db.getFlatDatabase();
+  expect(anotherFlat).toBeDefined();
+  expect(anotherFlat.songs.length).toEqual(735);
+  await FileUtil.arrayToTextFileAsync(
+    ['-'],
+    './src/__tests__/NotActuallyFiles/Yello - 1985 - Stella/01 - Test.flac',
+  );
+  expect(await db.refresh()).toBeTruthy();
   const finalFlat = db.getFlatDatabase();
-  expect(finalFlat).toBeDefined();
-  expect(finalFlat.songs.length).toEqual(735);
+  expect(finalFlat.songs.length).toEqual(736);
 });

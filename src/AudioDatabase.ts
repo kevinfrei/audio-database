@@ -567,11 +567,15 @@ export async function MakeAudioDatabase(
   }
 
   function delSongByPath(filepath: string): boolean {
-    const idx = GetIndexForPath(filepath);
-    if (!idx) {
+    const afi = GetIndexForPath(filepath);
+    if (!afi) {
       return false;
     }
-    const key = idx.makeSongKey(filepath);
+    return delSongFromAfi(filepath, afi);
+  }
+
+  function delSongFromAfi(filepath: string, afi: AudioFileIndex): boolean {
+    const key = afi.makeSongKey(filepath);
     // Now, let's see if we can find this song
     return data.dbSongs.has(key) ? delSongByKey(key) : false;
   }
@@ -584,6 +588,14 @@ export async function MakeAudioDatabase(
       // TODO: Make a "everything else" index.
       return false;
     }
+    return addSongToAfi(filePath, afi);
+  }
+
+  // Returns true if we should look inside the file for metadata
+  async function addSongToAfi(
+    filePath: string,
+    afi: AudioFileIndex,
+  ): Promise<boolean> {
     const md = await afi.getMetadataForSong(filePath);
     if (!md) {
       return false;
@@ -606,7 +618,7 @@ export async function MakeAudioDatabase(
       return false;
     }
     data.dbAudioIndices.set(filePath, idx);
-    await idx.forEachAudioFile(addSongFromPath);
+    await idx.forEachAudioFile(async (fp: string) => addSongToAfi(fp, idx));
     return true;
   }
 
@@ -625,7 +637,7 @@ export async function MakeAudioDatabase(
     if (!theIdx) {
       return false;
     }
-    await theIdx.forEachAudioFile(delSongByPath);
+    await theIdx.forEachAudioFile((fp) => delSongFromAfi(fp, theIdx));
     return data.dbAudioIndices.delete(thePath);
   }
 
@@ -709,12 +721,13 @@ export async function MakeAudioDatabase(
     // thing to call when you've added or removed an entire AFI.
     if (await singleWaiter.wait()) {
       try {
-        await Promise.all(
-          // TODO: Also handle adding/deleting/changing images?
-          [...data.dbAudioIndices.values()].map((afi) =>
-            afi.rescanFiles(addSongFromPath, delSongByPath),
-          ),
-        );
+        // TODO: Also handle adding/deleting/changing images?
+        for (const afi of data.dbAudioIndices.values()) {
+          await afi.rescanFiles(
+            async (filePath: string) => await addSongToAfi(filePath, afi),
+            (filePath: string) => delSongFromAfi(filePath, afi),
+          );
+        }
         // TODO: It should rebuild the keyword index
         log('Finished');
       } finally {
