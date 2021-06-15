@@ -1,4 +1,5 @@
 import { ToB64, Type } from '@freik/core-utils';
+import { FileUtil } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
@@ -21,6 +22,10 @@ export async function removeDir(name: string) {
 
 async function cleanup() {
   await removeDir('src/__tests__/audiofileindex/.afi');
+  await removeDir(
+    'src/__tests__/audiofileindex/' +
+      'Test Artist - 2010 - Test Album/04 - New File Not There.mp3',
+  );
 }
 
 beforeAll(cleanup);
@@ -110,6 +115,30 @@ it('Follow up tests', async () => {
     artist: 'Test Artist',
     title: 'This is an empty mp3 file',
     track: 3,
+    year: 2010,
+    originalPath: fullPath,
+  });
+  afi.destroy();
+});
+
+it('AudioFileIndex change detection', async () => {
+  const afi = await MakeAudioFileIndex(
+    'src/__tests__/audiofileindex',
+    0x1badcafe,
+  );
+  const songPathName =
+    'Test Artist - 2010 - Test Album/04 - New File Not There.mp3';
+  const fullPath = path.join(afi.getLocation(), songPathName);
+  await FileUtil.arrayToTextFileAsync([''], fullPath);
+  // Make sure that our metadata changes from the previous test sticks
+  await afi.rescanFiles();
+  const newMd = await afi.getMetadataForSong(fullPath);
+  // Make sure that our metadata changes from the previous test sticks
+  expect(newMd).toEqual({
+    album: 'Test Album',
+    artist: 'Test Artist',
+    title: 'New File Not There',
+    track: 4,
     year: 2010,
     originalPath: fullPath,
   });
