@@ -1,11 +1,12 @@
 {
   "name": "@freik/audiodb",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "NodeJS Audio/Music database",
   "author": "Kevin Frei <kevinfrei@hotmail.com>",
   "license": "Unlicense",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "lib/cjs/index.js",
+  "module": "lib/esm/index.js",
+  "types": "lib/esm/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://kevinfrei/audio-database.git"
