@@ -4,7 +4,6 @@
   "description": "NodeJS Audio/Music database",
   "author": "Kevin Frei <kevinfrei@hotmail.com>",
   "license": "Unlicense",
-  "private": false,
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "repository": {
@@ -15,17 +14,17 @@
     "test": "jest --config jestconfig.json",
     "watch": "jest --config jestconfig.json --watch",
     "build": "rimraf lib && tsc && minify -i -r lib",
-    "prepare": "pnpm build",
+    "prepare": "yarn build",
     "postpublish": "pinst --enable",
-    "prepublishOnly": "pnpm test && pnpm lint && pinst --disable",
+    "prepublishOnly": "yarn test && yarn lint && pinst --disable",
     "format": "prettier --write \"src/**/*.ts\" \"*.md\" \"*.json\" \".vscode/*.json\"",
     "lint": "eslint --fix --ext .ts src",
-    "preversion": "pnpm lint",
-    "version": "pnpm format && git add -A src",
+    "preversion": "yarn lint",
+    "version": "yarn format && git add -A src",
     "postversion": "git push && git push --tags --no-verify",
     "compile": "tsc --noEmit",
     "linecount": "git ls-files|grep \"\\.\\(css\\|ts\\)$\"|grep -v \"__\\|\\.d\\.ts\"|xargs wc -l",
-    "chk": "pnpm lint && pnpm compile && pnpm test"
+    "chk": "yarn lint && yarn compile && yarn test"
   },
   "dependencies": {
     "@freik/core-utils": "^0.27.3",
@@ -39,16 +38,17 @@
     "@types/jest": "^26.0.23",
     "@types/xxhashjs": "^0.2.2",
     "@typescript-eslint/eslint-plugin": "^4.26.1",
-    "eslint": "^7.28.0",
-    "husky": "^6.0.0",
-    "jest": "^26.6.3",
+    "eslint": "^8.0.1",
+    "husky": "^7.0.2",
+    "jest": "^27.3.1",
     "pinst": "^2.1.6",
-    "prettier": "^2.3.1",
+    "prettier": "^2.4.1",
     "rimraf": "^3.0.2",
-    "ts-jest": "^26.5.6",
-    "typescript": "^4.3.2"
+    "ts-jest": "^27.0.7",
+    "typescript": "^4.4.4"
   },
   "files": [
     "lib/**/*"
-  ]
+  ],
+  "packageManager": "yarn@3.0.2"
 }
