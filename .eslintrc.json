@@ -11,7 +11,7 @@
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "project": "./tsconfig.json",
+    "project": "./tsconfig.esm.json",
     "sourceType": "module"
   },
   "plugins": ["@typescript-eslint"],
@@ -140,7 +140,7 @@
     "max-len": "off",
     "new-parens": "off",
     "newline-per-chained-call": "off",
-    "no-bitwise": "off",
+    "no-bitwise": "error",
     "no-caller": "error",
     "no-cond-assign": "error",
     "no-console": "warn",

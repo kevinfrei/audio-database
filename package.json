@@ -1,6 +1,6 @@
 {
   "name": "@freik/audiodb",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "NodeJS Audio/Music database",
   "author": "Kevin Frei <kevinfrei@hotmail.com>",
   "license": "Unlicense",
@@ -13,7 +13,10 @@
   "scripts": {
     "test": "jest --config jestconfig.json",
     "watch": "jest --config jestconfig.json --watch",
-    "build": "rimraf lib && tsc && minify -i -r lib",
+    "clean": "rimraf lib && rimraf \".*.tsbuildinfo\"",
+    "build": "tsc --project tsconfig.cjs.json && tsc --project tsconfig.esm.json",
+    "cleanbuild": "yarn clean && yarn build",
+    "dbg": "yarn clean && tsc --sourceMap true --project tsconfig.cjs.json && tsc --sourceMap true --project tsconfig.esm.json",
     "prepare": "yarn build",
     "postpublish": "pinst --enable",
     "prepublishOnly": "yarn test && yarn lint && pinst --disable",
@@ -22,7 +25,7 @@
     "preversion": "yarn lint",
     "version": "yarn format && git add -A src",
     "postversion": "git push && git push --tags --no-verify",
-    "compile": "tsc --noEmit",
+    "compile": "tsc --noEmit --project tsconfig.cjs.json && tsc --noEmit --project tsconfig.esm.json",
     "linecount": "git ls-files|grep \"\\.\\(css\\|ts\\)$\"|grep -v \"__\\|\\.d\\.ts\"|xargs wc -l",
     "chk": "yarn lint && yarn compile && yarn test"
   },
@@ -38,7 +41,7 @@
     "@types/jest": "^26.0.23",
     "@types/xxhashjs": "^0.2.2",
     "@typescript-eslint/eslint-plugin": "^4.26.1",
-    "eslint": "^8.0.1",
+    "eslint": "^7.32.0",
     "husky": "^7.0.2",
     "jest": "^27.3.1",
     "pinst": "^2.1.6",
