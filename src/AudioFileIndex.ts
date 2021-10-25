@@ -19,12 +19,13 @@ import {
 } from '@freik/media-core';
 import { Covers, Metadata } from '@freik/media-utils';
 import {
+  FileUtil,
+  MakeFileIndex,
   MakePersistence,
   MakeSuffixWatcher,
+  pathCompare,
   PathUtil as path,
 } from '@freik/node-utils';
-import { hideFile } from '@freik/node-utils/lib/file';
-import { MakeFileIndex, pathCompare } from '@freik/node-utils/lib/FileIndex';
 import { constants as FS_CONST, promises as fsp } from 'fs';
 import { isAbsolute } from 'path';
 import { h32 } from 'xxhashjs';
@@ -205,7 +206,7 @@ export async function MakeAudioFileIndex(
         if (Type.isString(str)) {
           // If we created the folder, we also want to hide it, cuz turd files
           // are truly annoying
-          await hideFile(pathName);
+          await FileUtil.hideFile(pathName);
         }
       }
       return MakePersistence(pathName);
@@ -441,7 +442,7 @@ export async function MakeAudioFileIndex(
     const littlemd: SimpleMetadata | void = Metadata.FromPath(relPath);
     if (littlemd) {
       const fullPath = getFullPath(relPath);
-      const pathMd = Metadata.FullFromObj(fullPath, littlemd as any);
+      const pathMd = Metadata.FullFromObj(fullPath, littlemd);
       const md = { ...pathMd, ...mdOverride, originalPath: fullPath };
 
       if (IsFullMetadata(md)) {
@@ -461,10 +462,7 @@ export async function MakeAudioFileIndex(
       data.metadataCache.fail(relPath);
       return;
     }
-    const fullMd = Metadata.FullFromObj(
-      getFullPath(relPath),
-      maybeMetadata as any,
-    );
+    const fullMd = Metadata.FullFromObj(getFullPath(relPath), maybeMetadata);
     if (!fullMd) {
       log(`Partial metadata failure for ${relPath}`);
       data.metadataCache.fail(relPath);
