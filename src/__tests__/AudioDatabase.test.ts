@@ -1,5 +1,4 @@
-import { Type } from '@freik/core-utils';
-import { ArrayIntersection } from '@freik/core-utils/lib/Operations';
+import { Operations, Type } from '@freik/core-utils';
 import { Album, Artist } from '@freik/media-core';
 import { FileUtil, MakePersistence } from '@freik/node-utils';
 import { MakeAudioDatabase } from '../AudioDatabase';
@@ -153,7 +152,10 @@ it('Query a reasonably sized database', async () => {
       if (idx < 0) {
         // If we didn't find this artist as a primary artist
         // Check to see if one of the songs has the artist
-        const songsInCommon = ArrayIntersection(artist.songs, album.songs);
+        const songsInCommon = Operations.ArrayIntersection(
+          artist.songs,
+          album.songs,
+        );
         expect(songsInCommon.size).toBeGreaterThan(0);
       }
     }
