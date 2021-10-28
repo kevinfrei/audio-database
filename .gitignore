@@ -76,5 +76,3 @@ typings/
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-
-src/__tests__/persist-basic
