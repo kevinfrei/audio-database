@@ -1,5 +1,5 @@
 import { ToB64, Type } from '@freik/core-utils';
-import { FileUtil } from '@freik/node-utils';
+import { FileUtil, PathUtil } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
@@ -64,11 +64,11 @@ it('Some basic AudioFileIndex tests', async () => {
   expect(count).toEqual(6);
   expect(afi.getHashForIndex()).toEqual(ToB64(0x1badcafe));
   expect(afi.getLocation()).toEqual(
-    path.resolve('src/__tests__/audiofileindex') + '/',
+    PathUtil.xplat(path.resolve('src/__tests__/audiofileindex') + '/'),
   );
   const songPathName =
     "Test Artist - 2010 - Test Album/01 - This isn't actually an mp3.mp3";
-  const fullPath = path.join(afi.getLocation(), songPathName);
+  const fullPath = PathUtil.xplat(path.join(afi.getLocation(), songPathName));
   const theKey = afi.makeSongKey(fullPath);
   expect(theKey).toMatch(/^S[+/a-z0-9A-Z]+:[+/a-z0-9A-Z]+$/);
   songKey = theKey;
@@ -106,7 +106,7 @@ it('Follow up tests', async () => {
   );
   const songPathName =
     "Test Artist - 2010 - Test Album/01 - This isn't actually an mp3.mp3";
-  const fullPath = path.join(afi.getLocation(), songPathName);
+  const fullPath = PathUtil.xplat(path.join(afi.getLocation(), songPathName));
   const theKey = afi.makeSongKey(fullPath);
   expect(theKey).toEqual(songKey);
   const md = await afi.getMetadataForSong(fullPath);
@@ -140,7 +140,7 @@ it('AudioFileIndex change detection', async () => {
   );
   const songPathName =
     'Test Artist - 2010 - Test Album/04 - New File Not There.mp3';
-  const fullPath = path.join(afi.getLocation(), songPathName);
+  const fullPath = PathUtil.xplat(path.join(afi.getLocation(), songPathName));
   await FileUtil.arrayToTextFileAsync(['-'], fullPath);
   // Make sure that our metadata changes from the previous test sticks
   await afi.rescanFiles();
