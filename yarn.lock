@@ -1432,10 +1432,10 @@ __metadata:
   resolution: "@freik/audiodb@workspace:."
   dependencies:
     "@freik/build-tools": ^3.1.6
-    "@freik/core-utils": ^0.32.0
-    "@freik/media-core": ^0.10.0
-    "@freik/media-utils": ^0.13.1
-    "@freik/node-utils": ^0.20.2
+    "@freik/core-utils": ^0.33.0
+    "@freik/media-core": ^0.10.1
+    "@freik/media-utils": ^0.13.2
+    "@freik/node-utils": ^0.20.5
     "@types/jest": ^27.0.2
     "@types/xxhashjs": ^0.2.2
     "@typescript-eslint/eslint-plugin": ^5.2.0
@@ -1504,56 +1504,40 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@freik/core-utils@npm:^0.31.0":
-  version: 0.31.0
-  resolution: "@freik/core-utils@npm:0.31.0"
-  checksum: 2d71105d5153adfb4f73a085b4ba6a74578cd7f3cd623681851a0e79665acf52024eb1183fb5e71095be751a1b230cad0597c5ec296f31821f7a966c1c1cbcf2
+"@freik/core-utils@npm:^0.33.0":
+  version: 0.33.0
+  resolution: "@freik/core-utils@npm:0.33.0"
+  checksum: 8dfb3f733e421843dff9373f7b1abc97e33ed03817696113ae22c73034f5d86d057976337fdad270654286ae6b46a2033ec304f09b621ed313313f9a1e78e679
   languageName: node
   linkType: hard
 
-"@freik/core-utils@npm:^0.32.0":
-  version: 0.32.0
-  resolution: "@freik/core-utils@npm:0.32.0"
-  checksum: 7ad144b35425a4887392429948fbd4baff3ef19d1fab4a86949e361fb933d903a9e306277bb86606b5af4ae812f49b5ee4770c80dceae1ae68b2068951171973
-  languageName: node
-  linkType: hard
-
-"@freik/media-core@npm:^0.10.0":
-  version: 0.10.0
-  resolution: "@freik/media-core@npm:0.10.0"
+"@freik/media-core@npm:^0.10.1":
+  version: 0.10.1
+  resolution: "@freik/media-core@npm:0.10.1"
   dependencies:
-    "@freik/core-utils": ^0.31.0
-  checksum: d27bf1928fb828b1747f5b8e30d7bae5ebf9b3894416f783f232df31b8c23c91b676fb5cd5ab2fbc29c079c58e8fbb18463606f0df046ca32dd40a90936c3cb5
+    "@freik/core-utils": ^0.33.0
+  checksum: d4508e17886314351eab2034969dddd323d4911c995014971cb5c80e546ec7fbb502d9339049f545cd97f4d9a7df7fb53607dae0a15693908989ed54d392728f
   languageName: node
   linkType: hard
 
-"@freik/media-utils@npm:^0.13.1":
-  version: 0.13.1
-  resolution: "@freik/media-utils@npm:0.13.1"
+"@freik/media-utils@npm:^0.13.2":
+  version: 0.13.2
+  resolution: "@freik/media-utils@npm:0.13.2"
   dependencies:
-    "@freik/core-utils": ^0.31.0
-    "@freik/media-core": ^0.10.0
-    "@freik/node-utils": ^0.18.0
+    "@freik/core-utils": ^0.33.0
+    "@freik/media-core": ^0.10.1
+    "@freik/node-utils": ^0.20.5
     music-metadata: ^7.11.4
-  checksum: f19adb91886a9849bae21ed98d4c10886394dd1fa23af08848730e395b515906442bb8440a76a7322d7393e4117fc4cfcc39e991a4177fb78eaf8f3618c7a1b6
+  checksum: a01c762947d7c82a153bf403b3380c09b52b3e9b2522c683b512a2bdab63ab0bbe285fe897edafd6c2ae78bb4e5ee0be4a15085ed967370aa54c76a6424ce9df
   languageName: node
   linkType: hard
 
-"@freik/node-utils@npm:^0.18.0":
-  version: 0.18.0
-  resolution: "@freik/node-utils@npm:0.18.0"
+"@freik/node-utils@npm:^0.20.5":
+  version: 0.20.5
+  resolution: "@freik/node-utils@npm:0.20.5"
   dependencies:
-    "@freik/core-utils": ^0.31.0
-  checksum: 2b31819d778c8d2aefc641529da4fa6400108170eb9d8ea0a22d46849ed8c84a88fbbb70377395cdfcdecb54a390bc0f314deba10592ac0b78f9758676b1b1ec
-  languageName: node
-  linkType: hard
-
-"@freik/node-utils@npm:^0.20.2":
-  version: 0.20.2
-  resolution: "@freik/node-utils@npm:0.20.2"
-  dependencies:
-    "@freik/core-utils": ^0.32.0
-  checksum: 5955f7d601bee6a952074e910b14a1ba5d40d1b94b016b19f46a6959d84e6c7b0566249f5440491be7b1673c77b7271aa332717a9fd914bb06490c44f657d7a7
+    "@freik/core-utils": ^0.33.0
+  checksum: 8eeff6ba3ab0154b46ac6cdd92fd705126b8f6798483299fff07514eead1cc6e5c358af1bf284f38eb659d5348228d699e86da5a0c8b16edd506b788511b0116
   languageName: node
   linkType: hard
 
