@@ -3,18 +3,19 @@ import { Album, Artist } from '@freik/media-core';
 import { FileUtil, MakePersistence } from '@freik/node-utils';
 import { MakeAudioDatabase } from '../AudioDatabase';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
-import { remove, removeDir } from './AudioFileIndex.test';
+import { remove, removeDir } from './tst-helpers';
 
 jest.useFakeTimers();
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
 
 async function cleanup() {
-  remove('./src/__tests__/persist-basic/test.json');
-  remove(
+  await remove('./src/__tests__/persist-basic/test.json');
+  await remove(
     './src/__tests__/NotActuallyFiles/Yello - 1985 - Stella/01 - Test.flac',
   );
-  removeDir('./src/__tests__/NotActuallyFiles/.afi');
+  await removeDir('./src/__tests__/NotActuallyFiles/.afi');
+  await removeDir('./src/__tests__/persist-basic');
 }
 
 // Initialization if we need anything

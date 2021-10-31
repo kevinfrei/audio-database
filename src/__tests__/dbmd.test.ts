@@ -20,11 +20,11 @@ import {
   IsFullMetadata,
   IsOnlyMetadata,
 } from '../DbMetadata';
+import { remove, removeDir } from './tst-helpers';
 
 beforeAll(async () => {
-  try {
-    await fsp.rm(path.resolve('src/__tests__/persist-basic/basic.json'));
-  } catch (err) {}
+  await remove('src/__tests__/persist-basic/basic.json');
+  await removeDir('src/__tests__/persist-basic');
 });
 
 it('Full/Partial Metadata tests', () => {

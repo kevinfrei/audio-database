@@ -1,26 +1,10 @@
-import { ToB64, Type } from '@freik/core-utils';
+import { ToB64 } from '@freik/core-utils';
 import { FileUtil, PathUtil } from '@freik/node-utils';
-import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeAudioFileIndex } from '../AudioFileIndex';
+import { removeDir } from './tst-helpers';
 
 jest.useFakeTimers();
-
-export async function remove(name: string) {
-  try {
-    await fsp.rm(name);
-  } catch (e) {}
-}
-
-export async function removeDir(name: string) {
-  try {
-    await fsp.rm(name, { recursive: true });
-  } catch (e) {
-    if (!Type.hasStr(e, 'code') || e.code !== 'ENOENT') {
-      console.error(e);
-    }
-  }
-}
 
 async function cleanup() {
   await removeDir('src/__tests__/audiofileindex/.afi');

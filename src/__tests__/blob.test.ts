@@ -1,13 +1,14 @@
 import { promises as fsp } from 'fs';
 import path from 'path';
 import { MakeBlobStore } from '../BlobStore';
+import { removeDir } from './tst-helpers';
 
 beforeAll(async () => {
   await fsp.mkdir(path.resolve('src/__tests__/blob-test'));
 });
 
 afterAll(async () => {
-  await fsp.rm(path.resolve('src/__tests__/blob-test'), { recursive: true });
+  await removeDir('src/__tests__/blob-test');
 });
 
 const aString = 'asdflakjsdflaksdjf';
