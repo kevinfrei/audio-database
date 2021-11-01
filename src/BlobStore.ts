@@ -1,4 +1,5 @@
 import {
+  MakeLogger,
   MakeMultiMap,
   MaybeWait,
   OnlyOneActive,
@@ -7,6 +8,8 @@ import {
 import { FileUtil, PathUtil as path } from '@freik/node-utils';
 import { promises as fs } from 'fs';
 import { h64 } from 'xxhashjs';
+
+const log = MakeLogger('BlobStore', true);
 
 export type BlobStore<T> = {
   get(key: T): Promise<Buffer | void>;
@@ -51,7 +54,9 @@ export async function MakeBlobStore<T>(
 
   const saveIndexInTheFuture = OnlyOneActive(async () => {
     const data = [...keyToPath].flat();
+    log('Finally writing the index...');
     await FileUtil.arrayToTextFileAsync(data, blobIndex);
+    log('Wrote the index');
   }, 250);
 
   // Save the index file back to disk
@@ -76,15 +81,19 @@ export async function MakeBlobStore<T>(
   async function putMany(data: Buffer, keys: Iterable<T>): Promise<void> {
     const filename = 'BLOB-' + h64(data, 0x12481632).toString(36);
     try {
+      log(`About to write the file: ${filename}`);
       await fs.writeFile(getPath(filename), data);
     } catch (e) {
       // This should handle conflicts, which hopefully never occur...
+      log(`Failed to write the file:`);
+      log(e);
     }
     for (const key of keys) {
       const xlateKey = await xlate(key);
       keyToPath.set(xlateKey, filename);
       pathToKeys.set(filename, xlateKey);
     }
+    log('About to save the index');
     await saveIndex();
   }
 

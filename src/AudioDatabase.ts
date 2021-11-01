@@ -23,7 +23,13 @@ import {
   MediaKey,
   SongKey,
 } from '@freik/media-core';
-import { MakePersistence, PathUtil as path, Persist } from '@freik/node-utils';
+import {
+  MakePersistence,
+  PathUtil as path,
+  PathUtil,
+  Persist,
+} from '@freik/node-utils';
+import { promises as fsp } from 'fs';
 import { h32 } from 'xxhashjs';
 import { SongWithPath, VAType } from '.';
 import {
@@ -32,10 +38,11 @@ import {
   GetIndexForPath,
   MakeAudioFileIndex,
 } from './AudioFileIndex';
+import { MakeBlobStore } from './BlobStore';
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
 
-const log = MakeLogger('AudioDatabase');
+const log = MakeLogger('AudioDatabase', true);
 const err = MakeError('AudioDatabase-err');
 
 export type FlatAudioDatabase = {
@@ -174,6 +181,18 @@ export async function MakeAudioDatabase(
   const persist = Type.isString(localStorageLocation)
     ? MakePersistence(localStorageLocation)
     : localStorageLocation;
+  const loc = PathUtil.join(persist.getLocation(), 'artists');
+  try {
+    await fsp.mkdir(loc, { recursive: true });
+  } catch (e) {
+    /* */
+  }
+  log('Artist Store Location: ' + loc);
+  const artistStore = await MakeBlobStore<Artist>(
+    (r: Artist) => r.name.toLowerCase(),
+    loc,
+  );
+
   /*
    * Private member data
    */
@@ -213,11 +232,9 @@ export async function MakeAudioDatabase(
     } else if (isArtistKey(key)) {
       const artist = data.dbArtists.get(key);
       if (artist) {
-        for (const songKey of artist.songs) {
-          const res = await getPicture(songKey);
-          if (res instanceof Buffer) {
-            return res;
-          }
+        const res = await artistStore.get(artist);
+        if (res instanceof Buffer) {
+          return res;
         }
       }
     } else if (isSongKey(key)) {
@@ -245,13 +262,24 @@ export async function MakeAudioDatabase(
           );
         }
       } else if (isArtistKey(key)) {
+        log('Saving artist...');
         const artist = data.dbArtists.get(key);
+        log(artist);
         if (artist) {
+          log(artist);
+          await artistStore.put(buf, artist);
+          // await artistStore.flush();
+          /*  
           await Promise.all(
             artist.songs.map((k) => afi.setImageForSong(k, buf)),
           );
+          */
         }
+      } else {
+        err('Unknown key type:' + key);
       }
+    } else {
+      err(`Didn\'t get the AFI for ${key}`);
     }
   }
 
