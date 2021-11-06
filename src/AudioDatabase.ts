@@ -276,7 +276,7 @@ export async function MakeAudioDatabase(
           */
         }
       } else {
-        err('Unknown key type:' + key);
+        err('Unknown key type:', key);
       }
     } else {
       err(`Didn\'t get the AFI for ${key}`);
@@ -823,8 +823,8 @@ export async function MakeAudioDatabase(
         dbArtists: data.dbArtists,
         albumTitleIndex: data.albumTitleIndex,
         artistNameIndex: data.artistNameIndex,
-        indices: [...data.dbAudioIndices].map(([loc, afi]) => ({
-          location: loc,
+        indices: [...data.dbAudioIndices].map(([location, afi]) => ({
+          location,
           hash: afi.getHashForIndex(),
         })),
       }),
