@@ -42,7 +42,7 @@ import { MakeBlobStore } from './BlobStore';
 import { MusicSearch, SearchResults } from './MusicSearch';
 import { MakeSearchable } from './Search';
 
-const log = MakeLogger('AudioDatabase', true);
+const log = MakeLogger('AudioDatabase');
 const err = MakeError('AudioDatabase-err');
 
 export type FlatAudioDatabase = {

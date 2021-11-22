@@ -9,7 +9,7 @@ import { FileUtil, PathUtil as path } from '@freik/node-utils';
 import { promises as fs } from 'fs';
 import { h64 } from 'xxhashjs';
 
-const log = MakeLogger('BlobStore', true);
+const log = MakeLogger('BlobStore');
 
 export type BlobStore<T> = {
   get(key: T): Promise<Buffer | void>;

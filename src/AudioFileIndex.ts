@@ -149,7 +149,7 @@ function addIndex(
   return b64;
 }
 
-// Remove the idnex from the location list
+// Remove the index from the location list
 // It hangs out in the WeakMap, cuz why not...
 function delIndex(index: AudioFileIndex) {
   // remove it from the path list
