@@ -29,12 +29,12 @@ import {
 import { constants as FS_CONST, promises as fsp } from 'fs';
 import { isAbsolute } from 'path';
 import { h32 } from 'xxhashjs';
-import { MakeBlobStore } from './BlobStore';
+import { MakeBlobStore } from './BlobStore.js';
 import {
   GetMetadataStore,
   IsFullMetadata,
   MinimumMetadata,
-} from './DbMetadata';
+} from './DbMetadata.js';
 
 const log = MakeLogger('AudioFileIndex');
 const err = MakeError('AudioFileIndex-err');
@@ -227,11 +227,10 @@ export async function MakeAudioFileIndex(
     location: tmpLocation,
     indexHashString: '',
     persist: tmpPersist,
-    fileIndex: await MakeFileIndex(
-      tmpLocation,
-      watchTypes,
-      path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
-    ),
+    fileIndex: await MakeFileIndex(tmpLocation, {
+      fileWatcher: watchTypes,
+      indexFolderLocation: path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
+    }),
     metadataCache: await GetMetadataStore(tmpPersist, 'metadataCache'),
     metadataOverride: await GetMetadataStore(tmpPersist, 'metadataOverride'),
     // A hash table of h32's to path-names
@@ -243,8 +242,8 @@ export async function MakeAudioFileIndex(
           .map((line): [number, string] => {
             const firstComma = line.indexOf(',');
             const sp = [
-              line.substr(0, firstComma),
-              line.substr(firstComma + 1),
+              line.substring(0, firstComma),
+              line.substring(firstComma + 1),
             ];
             if (Type.is2TupleOf(sp, Type.isString, Type.isString)) {
               const key = Type.asNumber(Number.parseInt(sp[0], 36), -1);
@@ -309,7 +308,7 @@ export async function MakeAudioFileIndex(
     if (!absPath.startsWith(data.location)) {
       throw Error(`Invalid prefix ${data.location} for songPath ${absPath}`);
     }
-    return absPath.substr(data.location.length);
+    return absPath.substring(data.location.length);
   }
 
   // From a (possibly) relative path, get something we can read data from

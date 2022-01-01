@@ -38,9 +38,9 @@ import {
   GetIndexForPath,
   MakeAudioFileIndex,
 } from './AudioFileIndex';
-import { MakeBlobStore } from './BlobStore';
-import { MusicSearch, SearchResults } from './MusicSearch';
-import { MakeSearchable } from './Search';
+import { MakeBlobStore } from './BlobStore.js';
+import { MusicSearch, SearchResults } from './MusicSearch.js';
+import { MakeSearchable } from './Search.js';
 
 const log = MakeLogger('AudioDatabase');
 const err = MakeError('AudioDatabase-err');

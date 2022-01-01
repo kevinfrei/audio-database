@@ -11,7 +11,7 @@
       "runtimeArgs": [
         "--preserve-symlinks",
         "--inspect-brk",
-        "${workspaceFolder}/node_modules/.bin/jest",
+        "${workspaceFolder}/node_modules/jest/bin/jest.js",
         "--runInBand",
         "--config",
         "${workspaceFolder}/jestconfig.json"

@@ -31,29 +31,29 @@
     "chk": "yarn lint && yarn compile && yarn test"
   },
   "dependencies": {
-    "@freik/core-utils": "^0.33.0",
-    "@freik/media-core": "^0.10.1",
-    "@freik/media-utils": "^0.13.2",
-    "@freik/node-utils": "^0.20.6",
+    "@freik/core-utils": "^0.34.0",
+    "@freik/media-core": "^0.10.3",
+    "@freik/media-utils": "^0.13.4",
+    "@freik/node-utils": "^0.21.0",
     "xxhashjs": "^0.2.2"
   },
   "devDependencies": {
-    "@freik/build-tools": "^3.1.6",
-    "@types/jest": "^27.0.2",
+    "@freik/build-tools": "^3.2.0",
+    "@types/jest": "^27.4.0",
     "@types/rmfr": "^2.0.1",
     "@types/xxhashjs": "^0.2.2",
-    "@typescript-eslint/eslint-plugin": "^5.2.0",
-    "@typescript-eslint/parser": "^5.2.0",
-    "eslint": "^8.1.0",
+    "@typescript-eslint/eslint-plugin": "^5.8.1",
+    "@typescript-eslint/parser": "^5.8.1",
+    "eslint": "^8.6.0",
     "eslint-config-prettier": "^8.3.0",
     "husky": "^7.0.4",
-    "jest": "^27.3.1",
+    "jest": "^27.4.5",
     "pinst": "^2.1.6",
-    "prettier": "^2.4.1",
+    "prettier": "^2.5.1",
     "rimraf": "^3.0.2",
     "rmfr": "^2.0.0",
-    "ts-jest": "^27.0.7",
-    "typescript": "^4.4.4"
+    "ts-jest": "^27.1.2",
+    "typescript": "^4.5.4"
   },
   "files": [
     "lib/**/*"

@@ -321,7 +321,7 @@ export async function setMediaInfoForSong(
   if (fullPath.startsWith('*')) {
     // This means we've got a SongKey instead of a path
     // Get the path from the database
-    const sng = audioDatabase.getSong(fullPath.substr(1));
+    const sng = audioDatabase.getSong(fullPath.substring(1));
     if (!sng) {
       err('Unable to get the song for the song key for a metadata update');
       return;
