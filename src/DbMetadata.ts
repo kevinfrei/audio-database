@@ -1,7 +1,6 @@
 import {
   MakeError,
   MakeLogger,
-  ObjUtil,
   OnlyOneActive,
   Operations,
   Pickle,
@@ -42,7 +41,7 @@ function flatten(obj: NestedObject): Map<string, string> {
         }
       } else if (Type.isObject(data)) {
         for (const i in data) {
-          if (ObjUtil.has(i, data)) {
+          if (Type.has(data, i)) {
             walkChildren(`${pfx}${i}`, data[i]);
           }
         }

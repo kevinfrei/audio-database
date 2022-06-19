@@ -131,7 +131,10 @@ function addIndex(
   let b64 = ToB64(hashValue);
   while (indexKeyLookup.has(b64)) {
     const idx = indexKeyLookup.get(b64);
-    if (idx === index) {
+    if (idx === index || index.getLocation() === location) {
+      if (idx !== index) {
+        indexKeyLookup.set(b64, index);
+      }
       return b64;
     }
     // There's a hash conflict :/
