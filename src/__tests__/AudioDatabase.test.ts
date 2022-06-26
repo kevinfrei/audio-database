@@ -42,7 +42,7 @@ it('Query a reasonably sized database', async () => {
   const flat = db.getFlatDatabase();
 
   // Some basic stupidity:
-  expect(flat.songs.length).toEqual(735);
+  expect(flat.songs.length).toEqual(741);
   expect(flat.albums.length).toEqual(188);
   expect(flat.artists.length).toEqual(271);
 
@@ -211,10 +211,10 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(await db.refresh()).toBeTruthy();
   const flat = db.getFlatDatabase();
   expect(flat).toBeDefined();
-  expect(flat.songs.length).toEqual(735);
+  expect(flat.songs.length).toEqual(741);
   expect(await db.refresh()).toBeTruthy();
   const newFlat = db.getFlatDatabase();
-  expect(newFlat.songs.length).toEqual(735);
+  expect(newFlat.songs.length).toEqual(741);
   expect(
     await db.removeFileLocation('./src/__tests__/NotActuallyFiles'),
   ).toBeTruthy();
@@ -226,12 +226,38 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(await db.refresh()).toBeTruthy();
   const anotherFlat = db.getFlatDatabase();
   expect(anotherFlat).toBeDefined();
-  expect(anotherFlat.songs.length).toEqual(735);
+  expect(anotherFlat.songs.length).toEqual(741);
   await FileUtil.arrayToTextFileAsync(
     ['-'],
     './src/__tests__/NotActuallyFiles/Yello - 1985 - Stella/01 - Test.flac',
   );
   expect(await db.refresh()).toBeTruthy();
   const finalFlat = db.getFlatDatabase();
-  expect(finalFlat.songs.length).toEqual(736);
+  expect(finalFlat.songs.length).toEqual(742);
+  const res = db.searchIndex(false, 'qwerty');
+  expect(res.songs.length).toEqual(6);
+  const s1 = db.getCanonicalFileName(res.songs[0]);
+  const s2 = db.getCanonicalFileName(res.songs[1]);
+  const s3 = db.getCanonicalFileName(res.songs[2]);
+  const s4 = db.getCanonicalFileName(res.songs[3]);
+  const s5 = db.getCanonicalFileName(res.songs[4]);
+  const s6 = db.getCanonicalFileName(res.songs[5]);
+  expect(s1).toEqual(
+    'VA - 2009 - Singles/02 - Whitetown - Not an actual song qwerty [w- Yello].mp3',
+  );
+  expect(s2).toEqual(
+    'VA - 2009 - Singles/03 - Yello - Another Not Song qwerty [live from silly place].mp3',
+  );
+  expect(s3).toEqual(
+    'VA - 2009 - Singles/04 - ZZ Top - Both qwerty [live yup, it is][w- Whitetown].mp3',
+  );
+  expect(s4).toEqual(
+    'ZZ Top - 1992 - Greatest Hits/07 - Not a song qwerty [remix].mp3',
+  );
+  expect(s5).toEqual(
+    'ZZ Top - 1992 - Greatest Hits/08 - Not another qwerty song [remix][live][w- Whitetown & Yello].mp3',
+  );
+  expect(s6).toEqual(
+    'ZZ Top - 1992 - Greatest Hits/09 - Not qwerty another song [remix][w- Whitetown, Underworld & Yello].m4a',
+  );
 });

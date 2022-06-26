@@ -94,6 +94,7 @@ export type AudioDatabase = {
   // Metadata
   updateMetadata(fullPath: string, newMetadata: Partial<FullMetadata>): boolean;
   getMetadata(fullPathOrKey: string): Promise<FullMetadata | void>;
+  getCanonicalFileName(song: SongKey): string | void;
   // addOrUpdateSong(md: FullMetadata): void;
 };
 
@@ -862,6 +863,79 @@ export async function MakeAudioDatabase(
     }
     return await afi.getMetadataForSong(song.path);
   }
+
+  function artistString(artistIds: ArtistKey[]): string {
+    if (artistIds.length === 0) {
+      return '';
+    }
+    const artists: string[] = artistIds
+      .map((ak: ArtistKey) => {
+        const art = data.dbArtists.get(ak);
+        return art ? art.name : '';
+      })
+      .filter((a: string) => a.length > 0);
+    if (artists.length === 1) {
+      return artists[0];
+    } else {
+      const lastPart = ' & ' + (artists.pop() || 'OOPS!');
+      return artists.join(', ') + lastPart;
+    }
+  }
+
+  function getDiskPiece(album: Album, song: SongWithPath): string {
+    if (song.track < 99) {
+      return '/';
+    }
+    const diskNum = Math.round(song.track / 100);
+    if (album.diskNames && album.diskNames.length >= diskNum) {
+      return `/Disk ${diskNum}- ${album.diskNames[diskNum - 1]}/`;
+    }
+    return `/Disk ${diskNum}}/`;
+  }
+
+  function trackStr(track: number): string {
+    const num = track % 100;
+    if (num < 10) {
+      return '0' + num.toString();
+    }
+    return num.toString();
+  }
+
+  function getCanonicalFileName(file: SongKey): string | undefined {
+    // The source type is a playlist/album/artist
+    // The output format is just the metadata-based name
+    const song = data.dbSongs.get(file);
+    if (!song) {
+      return;
+    }
+    const album = data.dbAlbums.get(song.albumId);
+    if (!album) {
+      return;
+    }
+    const priArt = artistString(song.artistIds);
+    const secArt = artistString(song.secondaryIds);
+    const first =
+      album.vatype.length > 0
+        ? album.vatype === 'ost'
+          ? 'Soundtrack'
+          : 'VA'
+        : priArt;
+    const second =
+      album.year > 0 ? `${album.year} - ${album.title}` : album.title;
+    const middle = getDiskPiece(album, song);
+    const mixes = song.variations
+      ? song.variations.map((str) => `[${str}]`).join('')
+      : '';
+    const withs = secArt.length > 0 ? `[w- ${secArt}]` : '';
+    const last = `${trackStr(song.track)} - ${
+      album.vatype.length > 0 ? `${priArt} - ` : ''
+    }${song.title}${
+      withs.length + mixes.length > 0 ? ' ' : ''
+    }${mixes}${withs}`;
+    const sfx = path.extname(song.path);
+    return `${first} - ${second}${middle}${last}${sfx}`;
+  }
+
   /*
    *
    * Begin 'constructor' code here
@@ -905,5 +979,6 @@ export async function MakeAudioDatabase(
 
     getMetadata,
     updateMetadata,
+    getCanonicalFileName,
   };
 }
