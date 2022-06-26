@@ -894,7 +894,7 @@ export async function MakeAudioDatabase(
     ) {
       return `/Disk ${diskNum}- ${album.diskNames[diskNum - 1]}/`;
     }
-    return `/Disk ${diskNum}}/`;
+    return `/Disk ${diskNum}/`;
   }
 
   function trackStr(track: number): string {
