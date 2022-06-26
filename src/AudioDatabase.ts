@@ -887,7 +887,11 @@ export async function MakeAudioDatabase(
       return '/';
     }
     const diskNum = Math.round(song.track / 100);
-    if (album.diskNames && album.diskNames.length >= diskNum) {
+    if (
+      album.diskNames &&
+      album.diskNames.length >= diskNum &&
+      album.diskNames[diskNum - 1].length > 0
+    ) {
       return `/Disk ${diskNum}- ${album.diskNames[diskNum - 1]}/`;
     }
     return `/Disk ${diskNum}}/`;
