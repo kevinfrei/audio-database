@@ -234,6 +234,18 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(await db.refresh()).toBeTruthy();
   const finalFlat = db.getFlatDatabase();
   expect(finalFlat.songs.length).toEqual(742);
+  let coverCount = 0;
+  for (const { key } of finalFlat.albums) {
+    const cover = await db.getAlbumPicture(key);
+    if (!cover) {
+      continue;
+    }
+    const data = cover as Buffer;
+    expect(data.length == 1 || data.length == 19).toBeTruthy();
+    expect(data[0] == 10 || data.length == 19).toBeTruthy(); // All my "jpg"s but one
+    coverCount++;
+  }
+  expect(coverCount).toEqual(126);
   const res = db.searchIndex(false, 'qwerty');
   expect(res.songs.length).toEqual(6);
   const s1 = db.getCanonicalFileName(res.songs[0]);

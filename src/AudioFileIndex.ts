@@ -233,6 +233,7 @@ export async function MakeAudioFileIndex(
     fileIndex: await MakeFileIndex(tmpLocation, {
       fileWatcher: watchTypes,
       indexFolderLocation: path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
+      watchHidden: true, // We need this to see hidden cover images...
     }),
     metadataCache: await GetMetadataStore(tmpPersist, 'metadataCache'),
     metadataOverride: await GetMetadataStore(tmpPersist, 'metadataOverride'),
