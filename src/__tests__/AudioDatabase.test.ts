@@ -197,6 +197,7 @@ it('Query a reasonably sized database', async () => {
 });
 
 it('Rebuilding a DB after initial creation', async () => {
+  await Promise.resolve(process.nextTick);
   const db = await MakeAudioDatabase(persist);
   expect(db).toBeDefined();
   expect(
