@@ -1,6 +1,6 @@
 {
   "name": "@freik/audiodb",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "NodeJS Audio/Music database",
   "author": "Kevin Frei <kevinfrei@hotmail.com>",
   "license": "Unlicense",
@@ -42,8 +42,8 @@
     "@types/jest": "^28.1.4",
     "@types/rmfr": "^2.0.1",
     "@types/xxhashjs": "^0.2.2",
-    "@typescript-eslint/eslint-plugin": "^5.30.5",
-    "@typescript-eslint/parser": "^5.30.5",
+    "@typescript-eslint/eslint-plugin": "^5.30.6",
+    "@typescript-eslint/parser": "^5.30.6",
     "eslint": "^8.19.0",
     "eslint-config-prettier": "^8.5.0",
     "husky": "^8.0.1",

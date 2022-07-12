@@ -22,14 +22,8 @@ async function cleanup() {
 beforeAll(cleanup);
 
 afterAll(async () => {
+  // await new Promise(process.nextTick);
   await cleanup();
-  return new Promise((resolve) => {
-    // eslint-disable-next-line no-restricted-globals
-    setTimeout(cleanup, 100);
-    // eslint-disable-next-line no-restricted-globals
-    setTimeout(resolve, 200);
-    jest.runAllTimers();
-  });
 });
 
 it('Query a reasonably sized database', async () => {
