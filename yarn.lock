@@ -2009,9 +2009,9 @@ __metadata:
   dependencies:
     "@freik/build-tools": ^3.2.4
     "@freik/core-utils": ">=1.2.0"
-    "@freik/media-core": ^0.10.6
-    "@freik/media-utils": ">=0.13.5"
-    "@freik/node-utils": ^1.1.4
+    "@freik/media-core": ^0.11.0
+    "@freik/media-utils": ^0.14.0
+    "@freik/node-utils": ">=1.1.4"
     "@types/jest": ^28.1.8
     "@types/rmfr": ^2.0.1
     "@types/xxhashjs": ^0.2.2
@@ -2084,7 +2084,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@freik/core-utils@npm:>=1.1.1, @freik/core-utils@npm:>=1.2.0, @freik/core-utils@npm:^1.1.1, @freik/core-utils@npm:~1":
+"@freik/core-utils@npm:>=1.2.0, @freik/core-utils@npm:~1":
   version: 1.2.0
   resolution: "@freik/core-utils@npm:1.2.0"
   checksum: 0f734520a952d8a3d535aa181ed11a40c5308ef1095515a1e0edb61e2148f3e992a980384b16f47cb139b8467e442f05b01fb809a630e1d197764ab1aa527110
@@ -2101,37 +2101,28 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@freik/media-core@npm:^0.10.5":
-  version: 0.10.5
-  resolution: "@freik/media-core@npm:0.10.5"
+"@freik/media-core@npm:>=0.11.0, @freik/media-core@npm:^0.11.0":
+  version: 0.11.0
+  resolution: "@freik/media-core@npm:0.11.0"
   dependencies:
-    "@freik/core-utils": ^1.1.1
-  checksum: b007c8edec5e541bf04169980fa65bd871d7058ccead9d2b1651a886d051e275726ced8fa36daf46ad3c47bddf754341fdfd72872366a1f4a88b642b962d372e
+    "@freik/core-utils": ">=1.2.0"
+  checksum: 0e378ec0993447e1b0c72634fb676b31cd1b1f4b4f69349b1dd9b751b36f1f99bf1b1c086b4251dc99503eb025ddb66f0b1e39df5cd31b15ddc5040ee38ae679
   languageName: node
   linkType: hard
 
-"@freik/media-core@npm:^0.10.6":
-  version: 0.10.6
-  resolution: "@freik/media-core@npm:0.10.6"
+"@freik/media-utils@npm:^0.14.0":
+  version: 0.14.0
+  resolution: "@freik/media-utils@npm:0.14.0"
   dependencies:
-    "@freik/core-utils": ">=1.1.1"
-  checksum: 9aaa0aceb14d7b8888db423b0f0423532899b30737da25e64e367c24325646a72497c2f5ce0c8616588cc94ba3d04e4dacd11dd86074dc646999a7006d434082
+    "@freik/core-utils": ">=1.2.0"
+    "@freik/media-core": ">=0.11.0"
+    "@freik/node-utils": ">=1.1.4"
+    music-metadata: ^7.12.6
+  checksum: 0ac9da89950bcee38a56686a7c707e13cd05d3e2889543c99ec4d5db289643ffa673a27ab00e7681e56a9400aeac4d55ff1b96513dd6eb68bb70075360ada0f2
   languageName: node
   linkType: hard
 
-"@freik/media-utils@npm:>=0.13.5":
-  version: 0.13.5
-  resolution: "@freik/media-utils@npm:0.13.5"
-  dependencies:
-    "@freik/core-utils": ^1.1.1
-    "@freik/media-core": ^0.10.5
-    "@freik/node-utils": ^1.0.2
-    music-metadata: ^7.12.3
-  checksum: 36c2f3990561343c6bec25ecd837d21ab5963d2b2e5da1f704ea78f6356ecba020fc92aad41001c844797befefb2ac17cf33fbd26b62f2fd7e7b9f740fff874a
-  languageName: node
-  linkType: hard
-
-"@freik/node-utils@npm:>=1.1.3, @freik/node-utils@npm:^1.1.4":
+"@freik/node-utils@npm:>=1.1.3, @freik/node-utils@npm:>=1.1.4":
   version: 1.1.4
   resolution: "@freik/node-utils@npm:1.1.4"
   dependencies:
@@ -2139,17 +2130,6 @@ __metadata:
   peerDependencies:
     "@freik/core-utils": ">=1.1.1"
   checksum: a0ce8e7bca53e48bab7421416e04233425227f7b77233d490bba87642215b299147613ce104cc9f5415e3a677e2d67bc9cd43aa0a990cacab41f808b292c6624
-  languageName: node
-  linkType: hard
-
-"@freik/node-utils@npm:^1.0.2":
-  version: 1.1.1
-  resolution: "@freik/node-utils@npm:1.1.1"
-  dependencies:
-    is-hidden-file: ^1.1.2
-  peerDependencies:
-    "@freik/core-utils": ">=1.1.1"
-  checksum: e3f08290d2417008a132deffa22a5a1b1e6f96df4c339b4558a051d7ee97985b61d1701c913aae80143581da46357fbe45ee3215766959f59212068443c88d21
   languageName: node
   linkType: hard
 
@@ -5120,14 +5100,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"file-type@npm:16.5.3":
-  version: 16.5.3
-  resolution: "file-type@npm:16.5.3"
+"file-type@npm:^16.5.4":
+  version: 16.5.4
+  resolution: "file-type@npm:16.5.4"
   dependencies:
     readable-web-to-node-stream: ^3.0.0
     strtok3: ^6.2.4
     token-types: ^4.1.1
-  checksum: 38a4443d0f7b9b3de8a44a1d75d441f9ddb544a1adbf22ec7bc07d135452c3464000c64daa51220ffec6a38ceec7565a1290337bd81aab2e6273c79db5ed9ef3
+  checksum: d983c0f36491c57fcb6cc70fcb02c36d6b53f312a15053263e1924e28ca8314adf0db32170801ad777f09432c32155f31715ceaee66310947731588120d7ec27
   languageName: node
   linkType: hard
 
@@ -5951,16 +5931,6 @@ __metadata:
   dependencies:
     is-extglob: ^2.1.1
   checksum: d381c1319fcb69d341cc6e6c7cd588e17cd94722d9a32dbd60660b993c4fb7d0f19438674e68dfec686d09b7c73139c9166b47597f846af387450224a8101ab4
-  languageName: node
-  linkType: hard
-
-"is-hidden-file@npm:^1.1.2":
-  version: 1.1.2
-  resolution: "is-hidden-file@npm:1.1.2"
-  dependencies:
-    cross-spawn: ^7.0.3
-    node-gyp: latest
-  checksum: 7ea8d264f7377e91f524df54c14de24f1151afe1b56e6d72acd84eaefac28da32c90419e61555408a02397d5c0947810f0e0311bb9324a86a2c59f3fc8bf8ca3
   languageName: node
   linkType: hard
 
@@ -7849,18 +7819,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"music-metadata@npm:^7.12.3":
-  version: 7.12.3
-  resolution: "music-metadata@npm:7.12.3"
+"music-metadata@npm:^7.12.6":
+  version: 7.12.6
+  resolution: "music-metadata@npm:7.12.6"
   dependencies:
     "@tokenizer/token": ^0.3.0
     content-type: ^1.0.4
     debug: ^4.3.4
-    file-type: 16.5.3
+    file-type: ^16.5.4
     media-typer: ^1.1.0
     strtok3: ^6.3.0
     token-types: ^4.2.0
-  checksum: 027667791a04dda0cdf930a89a105613c544fe85c30fecfccee34c6b0196e4eed95a13981f723cee74fd506985a02b1baa76e18b663c516f5efab4a33b49f171
+  checksum: 66305429f1c1b5b536541ad8eb561d85eab2a33274e17dd6df8b0f4cb92ef46a5e27d4e66158b3b2425b6e6bc1dae1fae8005b2825ff0e31a66ae975dba50f50
   languageName: node
   linkType: hard
 
