@@ -453,7 +453,7 @@ export async function MakeAudioFileIndex(
       }
     }
     // This does some stuff about trying harder for files that don't parse right
-    let maybeMetadata = null;
+    let maybeMetadata: SimpleMetadata | void | null = null;
     try {
       maybeMetadata = await Metadata.FromFileAsync(getFullPath(relPath));
     } catch (e) {

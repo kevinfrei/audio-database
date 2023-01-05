@@ -69,7 +69,7 @@ export async function MakeBlobStore<T>(
     try {
       const hashKey = await xlate(key);
       const filepath = keyToPath.get(hashKey);
-      if (filepath) {
+      if (!Type.isUndefined(filepath)) {
         return await fs.readFile(getPath(filepath));
       }
     } catch (e) {

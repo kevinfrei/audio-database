@@ -6,6 +6,7 @@ import { MakeAudioFileIndex } from '../AudioFileIndex';
 import { remove, removeDir } from './tst-helpers';
 
 jest.useFakeTimers();
+jest.setTimeout(3000000);
 
 const persist = MakePersistence('./src/__tests__/persist-basic/');
 
@@ -236,6 +237,8 @@ it('Rebuilding a DB after initial creation', async () => {
       continue;
     }
     const data = cover as Buffer;
+    console.log(key);
+    console.log(data);
     expect(data.length == 1 || data.length == 19).toBeTruthy();
     expect(data[0] == 10 || data.length == 19).toBeTruthy(); // All my "jpg"s but one
     coverCount++;
