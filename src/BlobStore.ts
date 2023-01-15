@@ -85,7 +85,9 @@ export async function MakeBlobStore<T>(
       await fs.writeFile(getPath(filename), data);
     } catch (e) {
       // This should handle conflicts, which hopefully never occur...
+      /* istanbul ignore next */
       log(`Failed to write the file:`);
+      /* istanbul ignore next */
       log(e);
     }
     for (const key of keys) {

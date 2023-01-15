@@ -73,3 +73,16 @@ test('Restore, then clear', async () => {
   const files = await fsp.readdir(path.resolve('src/__tests__/blob-test'));
   expect(files.length).toEqual(1);
 });
+
+test('Restore, then delete', async () => {
+  const blobs = await MakeBlobStore(
+    (k: string) => k,
+    'src/__tests__/blob-test',
+  );
+  await blobs.put(Buffer.from('test'), 'test');
+  await blobs.flush(); // Flush to disk
+  await blobs.delete('test');
+  await blobs.flush(); // Flush to disk, again, just to be safe
+  const files = await fsp.readdir(path.resolve('src/__tests__/blob-test'));
+  expect(files.length).toEqual(1);
+});

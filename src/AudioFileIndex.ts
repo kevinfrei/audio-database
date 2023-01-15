@@ -138,8 +138,8 @@ function addIndex(
       return b64;
     }
     // There's a hash conflict :/
-    hashValue = h32(hashValue).update(location).digest().toNumber();
-    b64 = ToB64(hashValue);
+    /* istanbul ignore next */
+    b64 = ToB64(h32(hashValue).update(location).digest().toNumber());
   }
   indexKeyLookup.set(b64, index);
   let i = 0;
@@ -160,6 +160,7 @@ function delIndex(index: AudioFileIndex) {
   for (let i = 0; i < lengthSortedPaths.length; i++) {
     if (lengthSortedPaths[i].index === index) {
       if (lengthSortedPaths[i].location !== loc) {
+        /* istanbul ignore next */
         err(`Index and location are mismatched for ${loc}`);
       }
       lengthSortedPaths.splice(i, 1);
@@ -577,7 +578,9 @@ export async function MakeAudioFileIndex(
             }
             // eslint-disable-next-line no-empty
           } catch (e) {
+            /* istanbul ignore next */
             err('Error!');
+            /* istanbul ignore next */
             err(e);
           }
         }
