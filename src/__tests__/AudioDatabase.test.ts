@@ -232,13 +232,16 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(finalFlat.songs.length).toEqual(742);
   let coverCount = 0;
   for (const { key } of finalFlat.albums) {
+    if (key === 'LydGWYB') {
+      debugger;
+    }
     const cover = await db.getAlbumPicture(key);
     if (!cover) {
       continue;
     }
     const data = cover as Buffer;
-    console.log(key);
-    console.log(data);
+    // console.log(key);
+    // console.log(data);
     expect(data.length == 1 || data.length == 19).toBeTruthy();
     expect(data[0] == 10 || data.length == 19).toBeTruthy(); // All my "jpg"s but one
     coverCount++;

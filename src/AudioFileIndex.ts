@@ -500,11 +500,15 @@ export async function MakeAudioFileIndex(
     // TODO: Maybe keep track of which files we've already read from,
     // so we can skip this step in the future, yes?
     // Or instead leave this up to the AFI consumer to implement?
-    const maybeData = await Covers.ReadFromFile(fullPath);
-    if (maybeData) {
-      const buffer = Buffer.from(maybeData.data, 'base64');
-      // TODO: Save this outside the file, right?
-      return buffer;
+    try {
+      const maybeData = await Covers.ReadFromFile(fullPath);
+      if (maybeData) {
+        const buffer = Buffer.from(maybeData.data, 'base64');
+        // TODO: Save this outside the file, right?
+        return buffer;
+      }
+    } catch (e: unknown) {
+      /* nothing here, I guess: Windows + git + file names like Bjork = misery */
     }
   }
   // public
