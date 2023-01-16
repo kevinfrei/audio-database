@@ -232,9 +232,6 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(finalFlat.songs.length).toEqual(742);
   let coverCount = 0;
   for (const { key } of finalFlat.albums) {
-    if (key === 'LydGWYB') {
-      debugger;
-    }
     const cover = await db.getAlbumPicture(key);
     if (!cover) {
       continue;
