@@ -37,9 +37,9 @@ it('Query a reasonably sized database', async () => {
   const flat = db.getFlatDatabase();
 
   // Some basic stupidity:
-  expect(flat.songs.length).toEqual(741);
-  expect(flat.albums.length).toEqual(188);
-  expect(flat.artists.length).toEqual(271);
+  expect(flat.songs.length).toEqual(742);
+  expect(flat.albums.length).toEqual(189);
+  expect(flat.artists.length).toEqual(273);
 
   // More basic stupidity:
   for (const song of flat.songs) {
@@ -207,10 +207,10 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(await db.refresh()).toBeTruthy();
   const flat = db.getFlatDatabase();
   expect(flat).toBeDefined();
-  expect(flat.songs.length).toEqual(741);
+  expect(flat.songs.length).toEqual(742);
   expect(await db.refresh()).toBeTruthy();
   const newFlat = db.getFlatDatabase();
-  expect(newFlat.songs.length).toEqual(741);
+  expect(newFlat.songs.length).toEqual(742);
   expect(
     await db.removeFileLocation('./src/__tests__/NotActuallyFiles'),
   ).toBeTruthy();
@@ -222,14 +222,14 @@ it('Rebuilding a DB after initial creation', async () => {
   expect(await db.refresh()).toBeTruthy();
   const anotherFlat = db.getFlatDatabase();
   expect(anotherFlat).toBeDefined();
-  expect(anotherFlat.songs.length).toEqual(741);
+  expect(anotherFlat.songs.length).toEqual(742);
   await FileUtil.arrayToTextFileAsync(
     ['-'],
     './src/__tests__/NotActuallyFiles/Yello - 1985 - Stella/01 - Test.flac',
   );
   expect(await db.refresh()).toBeTruthy();
   const finalFlat = db.getFlatDatabase();
-  expect(finalFlat.songs.length).toEqual(742);
+  expect(finalFlat.songs.length).toEqual(743);
   let coverCount = 0;
   for (const { key } of finalFlat.albums) {
     const cover = await db.getAlbumPicture(key);

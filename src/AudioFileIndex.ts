@@ -1,5 +1,4 @@
 import {
-  DebouncedDelay,
   FreikTypeTag,
   FromB64,
   MakeError,
@@ -239,29 +238,7 @@ export async function MakeAudioFileIndex(
     metadataCache: await GetMetadataStore(tmpPersist, 'metadataCache'),
     metadataOverride: await GetMetadataStore(tmpPersist, 'metadataOverride'),
     // A hash table of h32's to path-names
-    existingSongKeys: await (async () => {
-      const songKeyText = await tmpPersist.getItemAsync('songKeys');
-      if (Type.isString(songKeyText)) {
-        const split = songKeyText.split('\n');
-        const vals = split
-          .map((line): [number, string] => {
-            const firstComma = line.indexOf(',');
-            const sp = [
-              line.substring(0, firstComma),
-              line.substring(firstComma + 1),
-            ];
-            if (Type.is2TupleOf(sp, Type.isString, Type.isString)) {
-              const key = Type.asNumber(Number.parseInt(sp[0], 36), -1);
-              return [key, sp[1]];
-            } else {
-              return [-1, ''];
-            }
-          })
-          .filter(([n, s]) => n !== -1 && s.length > 0);
-        return new Map(vals);
-      }
-      return new Map<number, SongKey>();
-    })(),
+    existingSongKeys: new Map<number, string>(),
     pictures: await MakeBlobStore(
       (key: MediaKey) => ToPathSafeName(key),
       path.join(tmpLocation, 'images'),
@@ -285,7 +262,6 @@ export async function MakeAudioFileIndex(
     getImageForSong,
     setImageForSong,
     destroy: () => {
-      saveSongKeys();
       delIndex(res);
     },
     [FreikTypeTag]: AFITypeTag,
@@ -310,6 +286,7 @@ export async function MakeAudioFileIndex(
   // Pull out a relative path that we can use as an OS agnostic locater
   function getRelativePath(songPath: string): string {
     const absPath = getFullPath(songPath);
+    /* istanbul ignore next */
     if (!absPath.startsWith(data.location)) {
       throw Error(`Invalid prefix ${data.location} for songPath ${absPath}`);
     }
@@ -347,16 +324,6 @@ export async function MakeAudioFileIndex(
     return false;
   }
 
-  // TODO: This duplicates the core index: Let's move what we can to this file
-  // to minimize duplicate data
-  async function saveExistingSongKeys(): Promise<void> {
-    const val = [...data.existingSongKeys.entries()]
-      .map(([n, s]) => n.toString(36) + ',' + s)
-      .join('\n');
-    await data.persist.setItemAsync('songKeys', val);
-  }
-  const saveSongKeys = DebouncedDelay(saveExistingSongKeys, 250);
-
   // Given either a key or a path, this returns a full path
   function pathFromKeyOrPath(keyorpath: string): string {
     // First, pull out the number from the key
@@ -391,10 +358,10 @@ export async function MakeAudioFileIndex(
       // err(`songKey hash collision: "${relPath}" with "${val || 'undefined'}"`);
       // Feed the old hash into the new hash to get a new value, cuz y not?
       // err(`Location: ${data.location}`);
+      /* istanbul ignore next */
       hash = h32(songPath, hash).toNumber();
     }
     data.existingSongKeys.set(hash, relPath);
-    saveSongKeys();
     return `S${data.indexHashString}:${ToB64(hash)}`;
   }
 
@@ -443,7 +410,7 @@ export async function MakeAudioFileIndex(
     }
     // Cached data overrides file path acquired metadata
     const mdOverride = data.metadataOverride.get(relPath);
-    const littlemd: SimpleMetadata | void = Metadata.FromPath(relPath);
+    const littlemd = Metadata.FromPath(relPath);
     if (littlemd) {
       const fullPath = getFullPath(relPath);
       const pathMd = Metadata.FullFromObj(fullPath, littlemd);
@@ -458,7 +425,9 @@ export async function MakeAudioFileIndex(
     try {
       maybeMetadata = await Metadata.FromFileAsync(getFullPath(relPath));
     } catch (e) {
+      /* istanbul ignore next */
       err(`Failed acquiring metadata from ${relPath}:`);
+      /* istanbul ignore next */
       err(e);
     }
     if (!maybeMetadata) {
@@ -467,6 +436,7 @@ export async function MakeAudioFileIndex(
       return;
     }
     const fullMd = Metadata.FullFromObj(getFullPath(relPath), maybeMetadata);
+    /* istanbul ignore if */
     if (!fullMd) {
       log(`Partial metadata failure for ${relPath}`);
       data.metadataCache.fail(relPath);

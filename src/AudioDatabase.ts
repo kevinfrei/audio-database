@@ -45,6 +45,13 @@ import { MakeSearchable } from './Search.js';
 const log = MakeLogger('AudioDatabase');
 const err = MakeError('AudioDatabase-err');
 
+/**
+ * FlatAudioDatabase
+ *
+ * A 'flat' collection of `SongWithPath`s, `Artist`s, and `Album`s
+ *
+ * @public
+ */
 export type FlatAudioDatabase = {
   songs: SongWithPath[];
   artists: Artist[];
