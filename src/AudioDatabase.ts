@@ -181,6 +181,12 @@ function EnsureDiskNums(album: Album, diskNum?: number, diskName?: string) {
   }
 }
 
+/**
+ * This creates an Audio Database
+ * @param localStorageLocation The location to store stuff outside of any particular Audio File Index *or* the Persist object to store stuff in
+ * @param audioKey
+ * @returns An AudioDatabase
+ */
 export async function MakeAudioDatabase(
   localStorageLocation: string | Persist,
   audioKey?: string,

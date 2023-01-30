@@ -24,6 +24,7 @@ import {
   MakeSuffixWatcher,
   pathCompare,
   PathUtil as path,
+  Watcher,
 } from '@freik/node-utils';
 import { constants as FS_CONST, promises as fsp } from 'fs';
 import { isAbsolute } from 'path';
@@ -187,14 +188,20 @@ async function maybeCallAndAdd(
   }
 }
 
+export type AudioFileIndexOptions = {
+  readOnlyFallbackLocation: string;
+  fileWatchFilter: Watcher;
+  watchHidden: boolean;
+};
+
 // The constructor for an AudioFileIndex
-// It takes a file location name, a "hash" for that location (ideally, on that's
-// stable *across operatings systems!* and a potential location for where to
+// It takes a file location name, a "hash" for that location (ideally, one that's
+// stable *across operatings systems* and a potential location for where to
 // store metadata & whatnot if the file system is read-only
 export async function MakeAudioFileIndex(
   locationName: string,
   fragmentHash: number,
-  readonlyFallbackLocation?: string,
+  options?: Partial<AudioFileIndexOptions>,
 ): Promise<AudioFileIndex> {
   /*
    * "member" data goes here
@@ -217,12 +224,13 @@ export async function MakeAudioFileIndex(
       // Probably a read only file system
     }
     // For readonly stuff, use the fallback location
-    if (Type.isString(readonlyFallbackLocation)) {
+    if (Type.isString(options?.readOnlyFallbackLocation)) {
       return MakePersistence(path.resolve(locationName));
     } else {
       throw new Error(`Non-writable location: ${locationName}`);
     }
   })();
+  const watchFilter = options?.fileWatchFilter;
   const data = {
     songList: new Array<string>(),
     picList: new Array<string>(),
@@ -231,7 +239,9 @@ export async function MakeAudioFileIndex(
     indexHashString: '',
     persist: tmpPersist,
     fileIndex: await MakeFileIndex(tmpLocation, {
-      fileWatcher: watchTypes,
+      fileWatcher: Type.isFunction(watchFilter)
+        ? (o: string) => watchFilter(o) && watchTypes(o)
+        : watchTypes,
       indexFolderLocation: path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
       watchHidden: true, // We need this to see hidden cover images...
     }),
