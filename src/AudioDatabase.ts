@@ -34,6 +34,7 @@ import { h32 } from 'xxhashjs';
 import { SongWithPath, VAType } from '.';
 import {
   AudioFileIndex,
+  AudioFileIndexOptions,
   GetIndexForKey,
   GetIndexForPath,
   MakeAudioFileIndex,
@@ -181,6 +182,15 @@ function EnsureDiskNums(album: Album, diskNum?: number, diskName?: string) {
   }
 }
 
+export type AudioDatabaseOptions = AudioFileIndexOptions | { audioKey: string };
+
+function getPersistenceIdName(options?: Partial<AudioDatabaseOptions>): string {
+  if (Type.isUndefined(options) || !Type.hasStr(options, 'audioKey')) {
+    return 'audio-database';
+  }
+  return options.audioKey;
+}
+
 /**
  * This creates an Audio Database
  * @param localStorageLocation The location to store stuff outside of any particular Audio File Index *or* the Persist object to store stuff in
@@ -189,9 +199,9 @@ function EnsureDiskNums(album: Album, diskNum?: number, diskName?: string) {
  */
 export async function MakeAudioDatabase(
   localStorageLocation: string | Persist,
-  audioKey?: string,
+  options?: Partial<AudioDatabaseOptions>,
 ): Promise<AudioDatabase> {
-  const persistenceIdName = audioKey || 'audio-database';
+  const persistenceIdName = getPersistenceIdName(options);
   const persist = Type.isString(localStorageLocation)
     ? MakePersistence(localStorageLocation)
     : localStorageLocation;
@@ -669,6 +679,7 @@ export async function MakeAudioDatabase(
     const afi = await MakeAudioFileIndex(
       thePath,
       h32(thePath, 0xdeadbeef).toNumber(),
+      options as Partial<AudioFileIndexOptions>,
     );
     return await addAudioFileIndex(afi);
   }
@@ -813,7 +824,15 @@ export async function MakeAudioDatabase(
     const audioIndices = new Map(
       (
         await Promise.all(
-          idx.map(({ location, hash }) => MakeAudioFileIndex(location, hash)),
+          idx.map(({ location, hash }) =>
+            MakeAudioFileIndex(
+              location,
+              hash,
+              !Type.isUndefined(options)
+                ? (options as Partial<AudioFileIndexOptions>)
+                : undefined,
+            ),
+          ),
         )
       ).map((afi): [string, AudioFileIndex] => [afi.getLocation(), afi]),
     );
