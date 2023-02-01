@@ -28,6 +28,7 @@ import {
   PathUtil as path,
   PathUtil,
   Persist,
+  Watcher,
 } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import { h32 } from 'xxhashjs';
@@ -189,6 +190,20 @@ function getPersistenceIdName(options?: Partial<AudioDatabaseOptions>): string {
     return 'audio-database';
   }
   return options.audioKey;
+}
+
+function makeFullOptions(
+  options?: Partial<AudioDatabaseOptions>,
+): AudioDatabaseOptions {
+  const fileWatchFilter: Watcher = (filepath: string) => {
+    return true;
+  };
+  return {
+    audioKey: 'audio-database',
+    watchHidden: false,
+    fileWatchFilter,
+    ...options,
+  };
 }
 
 /**
