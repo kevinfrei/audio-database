@@ -193,11 +193,18 @@ function getPersistenceIdName(options?: Partial<AudioDatabaseOptions>): string {
 }
 
 function makeFullOptions(
+  extraIgnoreFunc: Watcher,
   options?: Partial<AudioDatabaseOptions>,
 ): AudioDatabaseOptions {
-  const fileWatchFilter: Watcher = (filepath: string) => {
-    return true;
-  };
+  const func: Watcher | undefined =
+    !Type.isUndefined(options) &&
+    Type.has(options, 'fileWatchFilter') &&
+    Type.isFunction(options.fileWatchFilter)
+      ? (options.fileWatchFilter as Watcher)
+      : undefined;
+  const fileWatchFilter: Watcher = Type.isUndefined(func)
+    ? extraIgnoreFunc
+    : (filepath: string) => extraIgnoreFunc(filepath) && func(filepath);
   return {
     audioKey: 'audio-database',
     watchHidden: false,
