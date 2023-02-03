@@ -849,13 +849,13 @@ export async function MakeAudioDatabase(
     ) {
       return false;
     }
-    // TODO: Extra validation?
+    // TODO: Extra validation!!!
     const songs = flattened.dbSongs as Map<SongKey, SongWithPath>;
     const albums = flattened.dbAlbums as Map<AlbumKey, Album>;
     const artists = flattened.dbArtists as Map<ArtistKey, Artist>;
     const titleIndex = flattened.albumTitleIndex as MultiMap<string, AlbumKey>;
     const nameIndex = flattened.artistNameIndex as Map<string, ArtistKey>;
-    const idx = flattened.indices as { location: string; hash: number }[];
+    const idx = flattened.indices as { location: string; hash: string }[];
     const audioIndices = new Map(
       (
         await Promise.all(

@@ -124,12 +124,12 @@ export function GetIndexForPath(pathName: string): AudioFileIndex | void {
 // Adds an index with the given hash value and location
 // It returns the encoded hash value for the location
 function addIndex(
-  hashValue: number,
+  hashValue: number | string,
   location: string,
   index: AudioFileIndex,
 ): string {
-  let b64 = ToB64(hashValue);
-  while (indexKeyLookup.has(b64)) {
+  let b64 = Type.isString(hashValue) ? hashValue : ToB64(hashValue);
+  while (Type.isNumber(hashValue) && indexKeyLookup.has(b64)) {
     const idx = indexKeyLookup.get(b64);
     if (idx === index || index.getLocation() === location) {
       if (idx !== index) {
@@ -200,7 +200,7 @@ export type AudioFileIndexOptions = {
 // store metadata & whatnot if the file system is read-only
 export async function MakeAudioFileIndex(
   locationName: string,
-  fragmentHash: number,
+  fragmentHash: number | string,
   options?: Partial<AudioFileIndexOptions>,
 ): Promise<AudioFileIndex> {
   /*
@@ -359,7 +359,7 @@ export async function MakeAudioFileIndex(
   // public
   function makeSongKey(songPath: string): SongKey {
     const relPath = getRelativePath(songPath);
-    let hash = h32(relPath, fragmentHash).toNumber();
+    let hash = h32(relPath, 0xbadf00d).toNumber();
     while (data.existingSongKeys.has(hash)) {
       const val = data.existingSongKeys.get(hash);
       if (Type.isString(val) && pathCompare(val, relPath) === 0) {

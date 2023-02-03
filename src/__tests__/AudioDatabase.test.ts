@@ -271,3 +271,33 @@ it('Rebuilding a DB after initial creation', async () => {
     'ZZ Top - 1992 - Greatest Hits/09 - Not qwerty another song [remix][w- Whitetown, Underworld & Yello].m4a',
   );
 });
+
+it('Loading and Saving', async () => {
+  const db = await MakeAudioDatabase(persist);
+  expect(db).toBeDefined();
+  expect(
+    await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
+  ).toBeTruthy();
+  expect(await db.refresh()).toBeTruthy();
+  const flat = db.getFlatDatabase();
+  expect(flat).toBeDefined();
+  await db.save();
+
+  const db2 = await MakeAudioDatabase(persist);
+  expect(db2).toBeDefined();
+  expect(await db2.load()).toBeTruthy();
+});
+
+it('Ignoring stuff', async () => {
+  await Promise.resolve(process.nextTick);
+  const db = await MakeAudioDatabase(persist);
+  db.addIgnoreItem('dir-name', 'VA-AM Gold');
+  expect(db).toBeDefined();
+  expect(
+    await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
+  ).toBeTruthy();
+  expect(await db.refresh()).toBeTruthy();
+  const flat = db.getFlatDatabase();
+  expect(flat).toBeDefined();
+  expect(flat.songs.length).toEqual(704);
+});
