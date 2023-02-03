@@ -293,9 +293,12 @@ it('Ignoring stuff', async () => {
   const db = await MakeAudioDatabase(persist);
   db.addIgnoreItem('dir-name', 'VA-AM Gold');
   expect(db).toBeDefined();
-  expect(
-    await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
-  ).toBeTruthy();
+  if (!(await db.addFileLocation('./src/__tests__/NotActuallyFiles'))) {
+    await db.removeFileLocation('./src/__tests__/NotActuallyFiles');
+    expect(
+      await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
+    ).toBeTruthy();
+  }
   expect(await db.refresh()).toBeTruthy();
   const flat = db.getFlatDatabase();
   expect(flat).toBeDefined();

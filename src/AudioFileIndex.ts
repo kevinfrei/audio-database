@@ -231,6 +231,13 @@ export async function MakeAudioFileIndex(
     }
   })();
   const watchFilter = options?.fileWatchFilter;
+  function makeFilteredWatcher(w: Watcher): Watcher {
+    if (Type.isFunction(watchFilter)) {
+      return (o: string) => watchFilter(o) && w(o);
+    } else {
+      return w;
+    }
+  }
   const data = {
     songList: new Array<string>(),
     picList: new Array<string>(),
@@ -239,9 +246,7 @@ export async function MakeAudioFileIndex(
     indexHashString: '',
     persist: tmpPersist,
     fileIndex: await MakeFileIndex(tmpLocation, {
-      fileWatcher: Type.isFunction(watchFilter)
-        ? (o: string) => watchFilter(o) && watchTypes(o)
-        : watchTypes,
+      fileWatcher: makeFilteredWatcher(watchTypes),
       indexFolderLocation: path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
       watchHidden: true, // We need this to see hidden cover images...
     }),
@@ -394,8 +399,17 @@ export async function MakeAudioFileIndex(
     const imageDels = new Set<string>();
     await data.fileIndex.rescanFiles(
       async (pathName: string) => {
-        await maybeCallAndAdd(audioTypes, audioAdds, pathName, addAudioFile);
-        await maybeCallAndAdd(imageTypes, imageAdds, pathName);
+        await maybeCallAndAdd(
+          makeFilteredWatcher(audioTypes),
+          audioAdds,
+          pathName,
+          addAudioFile,
+        );
+        await maybeCallAndAdd(
+          makeFilteredWatcher(imageTypes),
+          imageAdds,
+          pathName,
+        );
       },
       async (pathName: string) => {
         await maybeCallAndAdd(audioTypes, audioDels, pathName, delAudioFile);
