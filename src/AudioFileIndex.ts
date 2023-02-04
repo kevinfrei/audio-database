@@ -24,6 +24,7 @@ import {
   MakeSuffixWatcher,
   pathCompare,
   PathUtil as path,
+  Watcher,
 } from '@freik/node-utils';
 import { constants as FS_CONST, promises as fsp } from 'fs';
 import { isAbsolute } from 'path';
@@ -123,12 +124,12 @@ export function GetIndexForPath(pathName: string): AudioFileIndex | void {
 // Adds an index with the given hash value and location
 // It returns the encoded hash value for the location
 function addIndex(
-  hashValue: number,
+  hashValue: number | string,
   location: string,
   index: AudioFileIndex,
 ): string {
-  let b64 = ToB64(hashValue);
-  while (indexKeyLookup.has(b64)) {
+  let b64 = Type.isString(hashValue) ? hashValue : ToB64(hashValue);
+  while (Type.isNumber(hashValue) && indexKeyLookup.has(b64)) {
     const idx = indexKeyLookup.get(b64);
     if (idx === index || index.getLocation() === location) {
       if (idx !== index) {
@@ -187,22 +188,28 @@ async function maybeCallAndAdd(
   }
 }
 
+export type AudioFileIndexOptions = {
+  readOnlyFallbackLocation: string;
+  fileWatchFilter: Watcher;
+  watchHidden: boolean;
+};
+
 // The constructor for an AudioFileIndex
-// It takes a file location name, a "hash" for that location (ideally, on that's
-// stable *across operatings systems!* and a potential location for where to
+// It takes a file location name, a "hash" for that location (ideally, one that's
+// stable *across operatings systems* and a potential location for where to
 // store metadata & whatnot if the file system is read-only
 export async function MakeAudioFileIndex(
   locationName: string,
-  fragmentHash: number,
-  readonlyFallbackLocation?: string,
+  fragmentHash: number | string,
+  options?: Partial<AudioFileIndexOptions>,
 ): Promise<AudioFileIndex> {
   /*
    * "member" data goes here
    */
-  const tmpLocation = path.trailingSlash(path.resolve(locationName));
+  const rootLocation = path.trailingSlash(path.resolve(locationName));
   // IIFE
   const tmpPersist = await (async () => {
-    const pathName = path.join(tmpLocation, '.afi');
+    const pathName = path.join(rootLocation, '.afi');
     try {
       if (!(await isWritableDir(pathName))) {
         const str = await fsp.mkdir(pathName, { recursive: true });
@@ -217,21 +224,44 @@ export async function MakeAudioFileIndex(
       // Probably a read only file system
     }
     // For readonly stuff, use the fallback location
-    if (Type.isString(readonlyFallbackLocation)) {
-      return MakePersistence(path.resolve(locationName));
+    if (
+      !Type.isUndefined(options) &&
+      Type.isString(options.readOnlyFallbackLocation)
+    ) {
+      return MakePersistence(path.resolve(options.readOnlyFallbackLocation));
     } else {
       throw new Error(`Non-writable location: ${locationName}`);
     }
   })();
+  const watchFilter = options?.fileWatchFilter;
+  function makeFilteredWatcher(w: Watcher): Watcher {
+    if (Type.isFunction(watchFilter)) {
+      return (fullpath: string) => {
+        let o = fullpath;
+        if (isAbsolute(o)) {
+          if (!o.startsWith(rootLocation)) {
+            err('Well shit!');
+            return false;
+          }
+          o = o.substring(rootLocation.length - 1);
+        } else {
+          o = '/' + o;
+        }
+        return watchFilter(o) && w(o);
+      };
+    } else {
+      return w;
+    }
+  }
   const data = {
     songList: new Array<string>(),
     picList: new Array<string>(),
     lastScanTime: ((): Date | null => null)(), // IIFE instead of a full type
-    location: tmpLocation,
+    location: rootLocation,
     indexHashString: '',
     persist: tmpPersist,
-    fileIndex: await MakeFileIndex(tmpLocation, {
-      fileWatcher: watchTypes,
+    fileIndex: await MakeFileIndex(rootLocation, {
+      fileWatcher: makeFilteredWatcher(watchTypes),
       indexFolderLocation: path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
       watchHidden: true, // We need this to see hidden cover images...
     }),
@@ -241,7 +271,7 @@ export async function MakeAudioFileIndex(
     existingSongKeys: new Map<number, string>(),
     pictures: await MakeBlobStore(
       (key: MediaKey) => ToPathSafeName(key),
-      path.join(tmpLocation, 'images'),
+      path.join(rootLocation, 'images'),
     ),
     fileSystemPictures: new Map<string, string>(),
   };
@@ -349,7 +379,7 @@ export async function MakeAudioFileIndex(
   // public
   function makeSongKey(songPath: string): SongKey {
     const relPath = getRelativePath(songPath);
-    let hash = h32(relPath, fragmentHash).toNumber();
+    let hash = h32(relPath, 0xbadf00d).toNumber();
     while (data.existingSongKeys.has(hash)) {
       const val = data.existingSongKeys.get(hash);
       if (Type.isString(val) && pathCompare(val, relPath) === 0) {
@@ -384,8 +414,17 @@ export async function MakeAudioFileIndex(
     const imageDels = new Set<string>();
     await data.fileIndex.rescanFiles(
       async (pathName: string) => {
-        await maybeCallAndAdd(audioTypes, audioAdds, pathName, addAudioFile);
-        await maybeCallAndAdd(imageTypes, imageAdds, pathName);
+        await maybeCallAndAdd(
+          makeFilteredWatcher(audioTypes),
+          audioAdds,
+          pathName,
+          addAudioFile,
+        );
+        await maybeCallAndAdd(
+          makeFilteredWatcher(imageTypes),
+          imageAdds,
+          pathName,
+        );
       },
       async (pathName: string) => {
         await maybeCallAndAdd(audioTypes, audioDels, pathName, delAudioFile);

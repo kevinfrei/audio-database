@@ -271,3 +271,60 @@ it('Rebuilding a DB after initial creation', async () => {
     'ZZ Top - 1992 - Greatest Hits/09 - Not qwerty another song [remix][w- Whitetown, Underworld & Yello].m4a',
   );
 });
+
+it('Loading and Saving', async () => {
+  const db = await MakeAudioDatabase(persist);
+  expect(db).toBeDefined();
+  expect(
+    await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
+  ).toBeTruthy();
+  expect(await db.refresh()).toBeTruthy();
+  const flat = db.getFlatDatabase();
+  expect(flat).toBeDefined();
+  await db.save();
+
+  const db2 = await MakeAudioDatabase(persist);
+  expect(db2).toBeDefined();
+  expect(await db2.load()).toBeTruthy();
+});
+
+it('Ignoring stuff', async () => {
+  await Promise.resolve(process.nextTick);
+  const db = await MakeAudioDatabase(persist);
+  expect(db).toBeDefined();
+  if (!(await db.addFileLocation('./src/__tests__/NotActuallyFiles'))) {
+    await db.removeFileLocation('./src/__tests__/NotActuallyFiles');
+    expect(
+      await db.addFileLocation('./src/__tests__/NotActuallyFiles'),
+    ).toBeTruthy();
+  }
+  let flat = db.getFlatDatabase();
+  expect(flat.songs.length).toEqual(743);
+  expect(flat.albums.length).toEqual(189);
+  expect(flat.artists.length).toEqual(273);
+
+  db.addIgnoreItem('dir-name', 'VA - AM Gold');
+  expect(await db.refresh()).toBeTruthy();
+  flat = db.getFlatDatabase();
+  expect(flat).toBeDefined();
+  expect(flat.songs.length).toEqual(705);
+  expect(flat.albums.length).toEqual(188);
+  expect(flat.artists.length).toEqual(236);
+
+  expect(db.removeIgnoreItem('dir-name', 'VA - AM Gold')).toBeTruthy();
+  db.addIgnoreItem('path-keyword', 'Petty');
+  expect(await db.refresh()).toBeTruthy();
+  flat = db.getFlatDatabase();
+  expect(flat).toBeDefined();
+  expect(flat.songs.length).toEqual(730);
+  expect(flat.albums.length).toEqual(186);
+  expect(flat.artists.length).toEqual(272);
+
+  db.addIgnoreItem('path-root', '/Utah Saints - 1992 - Utah Saints');
+  expect(await db.refresh()).toBeTruthy();
+  flat = db.getFlatDatabase();
+  expect(flat).toBeDefined();
+  expect(flat.songs.length).toEqual(726);
+  expect(flat.albums.length).toEqual(185);
+  expect(flat.artists.length).toEqual(271);
+});

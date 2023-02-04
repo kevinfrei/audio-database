@@ -28,12 +28,14 @@ import {
   PathUtil as path,
   PathUtil,
   Persist,
+  Watcher,
 } from '@freik/node-utils';
 import { promises as fsp } from 'fs';
 import { h32 } from 'xxhashjs';
 import { SongWithPath, VAType } from '.';
 import {
   AudioFileIndex,
+  AudioFileIndexOptions,
   GetIndexForKey,
   GetIndexForPath,
   MakeAudioFileIndex,
@@ -57,6 +59,14 @@ export type FlatAudioDatabase = {
   artists: Artist[];
   albums: Album[];
 };
+
+export type IgnoreType =
+  /*
+	| 'artist-name'
+  | 'album-title'
+  | 'track-title'
+	*/
+  'path-root' | 'path-keyword' | 'dir-name';
 
 export type AudioDatabase = {
   // Database API
@@ -88,6 +98,10 @@ export type AudioDatabase = {
   // delSongByPath(filepath: string): boolean; // Some Testing
   // delSongByKey(key: SongKey): boolean; // Some Testing
 
+  // Ignoring stuff:
+  addIgnoreItem(which: IgnoreType, value: string): void;
+  removeIgnoreItem(which: IgnoreType, value: string): boolean;
+
   // For all the 'parsed' data
   getFlatDatabase(): FlatAudioDatabase; // Some Testing
 
@@ -117,6 +131,7 @@ type PrivateAudioData = {
   albumTitleIndex: MultiMap<string, AlbumKey>;
   artistNameIndex: Map<string, ArtistKey>;
   keywordIndex: MusicSearch | null;
+  ignoreInfo: MultiMap<IgnoreType, string>;
 };
 
 const artistHash = new Map<number, string>();
@@ -181,11 +196,44 @@ function EnsureDiskNums(album: Album, diskNum?: number, diskName?: string) {
   }
 }
 
+export type AudioDatabaseOptions = AudioFileIndexOptions & { audioKey: string };
+
+function getPersistenceIdName(options: AudioDatabaseOptions): string {
+  return options.audioKey;
+}
+
+function makeFullOptions(
+  extraIgnoreFunc: Watcher,
+  options?: Partial<AudioDatabaseOptions>,
+): AudioDatabaseOptions {
+  const func: Watcher | undefined =
+    !Type.isUndefined(options) && Type.has(options, 'fileWatchFilter')
+      ? options.fileWatchFilter
+      : undefined;
+  const fileWatchFilter: Watcher = Type.isUndefined(func)
+    ? extraIgnoreFunc
+    : (filepath: string) => extraIgnoreFunc(filepath) && func(filepath);
+  return {
+    readOnlyFallbackLocation: 'read-only-stuff',
+    audioKey: 'audio-database',
+    watchHidden: false,
+    fileWatchFilter,
+    ...options,
+  };
+}
+
+/**
+ * This creates an Audio Database
+ * @param localStorageLocation The location to store stuff outside of any particular Audio File Index *or* the Persist object to store stuff in
+ * @param audioKey
+ * @returns An AudioDatabase
+ */
 export async function MakeAudioDatabase(
   localStorageLocation: string | Persist,
-  audioKey?: string,
+  opts?: Partial<AudioDatabaseOptions>,
 ): Promise<AudioDatabase> {
-  const persistenceIdName = audioKey || 'audio-database';
+  const fullOpts = makeFullOptions(ignoreWatchFilter, opts);
+  const persistenceIdName = getPersistenceIdName(fullOpts);
   const persist = Type.isString(localStorageLocation)
     ? MakePersistence(localStorageLocation)
     : localStorageLocation;
@@ -212,6 +260,7 @@ export async function MakeAudioDatabase(
     albumTitleIndex: MakeMultiMap<string, AlbumKey>(),
     artistNameIndex: new Map<string, ArtistKey>(),
     keywordIndex: null,
+    ignoreInfo: MakeMultiMap<IgnoreType, string>(),
   };
 
   function getSongKey(songPath: string): string {
@@ -602,6 +651,13 @@ export async function MakeAudioDatabase(
     return true;
   }
 
+  function delSongFromAfi(filepath: string, afi: AudioFileIndex): boolean {
+    const key = afi.makeSongKey(filepath);
+    // Now, let's see if we can find this song
+    return data.dbSongs.has(key) ? delSongByKey(key) : false;
+  }
+
+  /*
   function delSongByPath(filepath: string): boolean {
     const afi = GetIndexForPath(filepath);
     if (!afi) {
@@ -610,13 +666,7 @@ export async function MakeAudioDatabase(
     return delSongFromAfi(filepath, afi);
   }
 
-  function delSongFromAfi(filepath: string, afi: AudioFileIndex): boolean {
-    const key = afi.makeSongKey(filepath);
-    // Now, let's see if we can find this song
-    return data.dbSongs.has(key) ? delSongByKey(key) : false;
-  }
-
-  // Returns true if we should look inside the file for metadata
+	// Returns true if we should look inside the file for metadata
   async function addSongFromPath(filePath: string): Promise<boolean> {
     // First, figure out if this is from an index or not
     const afi = GetIndexForPath(filePath);
@@ -626,6 +676,7 @@ export async function MakeAudioDatabase(
     }
     return addSongToAfi(filePath, afi);
   }
+	*/
 
   // Returns true if we should look inside the file for metadata
   async function addSongToAfi(
@@ -663,6 +714,7 @@ export async function MakeAudioDatabase(
     const afi = await MakeAudioFileIndex(
       thePath,
       h32(thePath, 0xdeadbeef).toNumber(),
+      fullOpts as AudioFileIndexOptions,
     );
     return await addAudioFileIndex(afi);
   }
@@ -797,17 +849,23 @@ export async function MakeAudioDatabase(
     ) {
       return false;
     }
-    // TODO: Extra validation?
+    // TODO: Extra validation!!!
     const songs = flattened.dbSongs as Map<SongKey, SongWithPath>;
     const albums = flattened.dbAlbums as Map<AlbumKey, Album>;
     const artists = flattened.dbArtists as Map<ArtistKey, Artist>;
     const titleIndex = flattened.albumTitleIndex as MultiMap<string, AlbumKey>;
     const nameIndex = flattened.artistNameIndex as Map<string, ArtistKey>;
-    const idx = flattened.indices as { location: string; hash: number }[];
+    const idx = flattened.indices as { location: string; hash: string }[];
     const audioIndices = new Map(
       (
         await Promise.all(
-          idx.map(({ location, hash }) => MakeAudioFileIndex(location, hash)),
+          idx.map(({ location, hash }) =>
+            MakeAudioFileIndex(
+              location,
+              hash,
+              fullOpts as AudioFileIndexOptions,
+            ),
+          ),
         )
       ).map((afi): [string, AudioFileIndex] => [afi.getLocation(), afi]),
     );
@@ -837,6 +895,57 @@ export async function MakeAudioDatabase(
         })),
       }),
     );
+  }
+
+  function saveIgnoreInfo() {
+    persist
+      .setItemAsync('ignore-data', data.ignoreInfo.toJSON().toString())
+      // eslint-disable-next-line no-console
+      .catch(console.error);
+  }
+
+  function ignoreWatchFilter(filepath: string): boolean {
+    // Read the ignore info and check to see if this path should be ignored
+    const pathroots = data.ignoreInfo.get('path-root');
+    if (!Type.isUndefined(pathroots)) {
+      for (const pathroot of pathroots) {
+        if (filepath.toLowerCase().startsWith(pathroot.toLowerCase())) {
+          return false;
+        }
+      }
+    }
+    const dirnames = data.ignoreInfo.get('dir-name');
+    if (!Type.isUndefined(dirnames)) {
+      const pieces = new Set<string>(
+        filepath.split(/\/|\\/).map((str) => str.toLowerCase()),
+      );
+      if (Operations.SetIntersection(pieces, dirnames).size > 0) {
+        return false;
+      }
+    }
+    const pathkeywords = data.ignoreInfo.get('path-keyword');
+    if (!Type.isUndefined(pathkeywords)) {
+      const lcase = filepath.toLowerCase();
+      for (const pathkw of pathkeywords) {
+        if (lcase.indexOf(pathkw) >= 0) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function addIgnoreItem(item: IgnoreType, value: string): void {
+    data.ignoreInfo.set(item, value.toLocaleLowerCase());
+    saveIgnoreInfo();
+  }
+
+  function removeIgnoreItem(item: IgnoreType, value: string): boolean {
+    if (data.ignoreInfo.remove(item, value.toLocaleLowerCase())) {
+      saveIgnoreInfo();
+      return true;
+    }
+    return false;
   }
 
   function updateMetadata(
@@ -976,6 +1085,10 @@ export async function MakeAudioDatabase(
     setAlbumPicture: setPicture,
     getSongPicture: getPicture,
     setSongPicture: setPicture,
+
+    // Ignore stuff
+    addIgnoreItem,
+    removeIgnoreItem,
 
     // addSongFromPath,
     // addOrUpdateSong,
