@@ -1,6 +1,6 @@
 {
   "name": "@freik/audiodb",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "NodeJS Audio/Music database",
   "author": "Kevin Frei <kevinfrei@hotmail.com>",
   "license": "Unlicense",
@@ -38,16 +38,16 @@
     "@freik/core-utils": ">=1.2.0",
     "@freik/media-core": ">=0.11.0",
     "@freik/media-utils": ">=0.14.2",
-    "@freik/node-utils": ">=1.2.0",
+    "@freik/node-utils": ">=1.2.4",
     "xxhashjs": "^0.2.2"
   },
   "devDependencies": {
     "@freik/build-tools": "^3.4.5",
     "@types/jest": "^29.4.0",
-    "@types/rmfr": "^2.0.1",
+    "@types/rmfr": "^2.0.2",
     "@types/xxhashjs": "^0.2.2",
-    "@typescript-eslint/eslint-plugin": "^5.49.0",
-    "@typescript-eslint/parser": "^5.49.0",
+    "@typescript-eslint/eslint-plugin": "^5.50.0",
+    "@typescript-eslint/parser": "^5.50.0",
     "eslint": "^8.33.0",
     "eslint-config-prettier": "^8.6.0",
     "husky": "^8.0.3",
@@ -59,7 +59,7 @@
     "ts-jest": "^29.0.5",
     "typedoc": "^0.23.24",
     "typedoc-plugin-markdown": "^3.14.0",
-    "typescript": "^4.9.4"
+    "typescript": "^4.9.5"
   },
   "files": [
     "lib/**/*"
