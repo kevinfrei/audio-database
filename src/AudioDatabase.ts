@@ -936,12 +936,12 @@ export async function MakeAudioDatabase(
   }
 
   function addIgnoreItem(item: IgnoreType, value: string): void {
-    data.ignoreInfo.set(item, value);
+    data.ignoreInfo.set(item, value.toLocaleLowerCase());
     saveIgnoreInfo();
   }
 
   function removeIgnoreItem(item: IgnoreType, value: string): boolean {
-    if (data.ignoreInfo.remove(item, value)) {
+    if (data.ignoreInfo.remove(item, value.toLocaleLowerCase())) {
       saveIgnoreInfo();
       return true;
     }
