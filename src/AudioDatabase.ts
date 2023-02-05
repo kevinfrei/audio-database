@@ -3,6 +3,7 @@ import {
   MakeError,
   MakeLogger,
   MakeMultiMap,
+  MakeSearchable,
   MakeSingleWaiter,
   MultiMap,
   Operations,
@@ -42,7 +43,6 @@ import {
 } from './AudioFileIndex';
 import { MakeBlobStore } from './BlobStore.js';
 import { MusicSearch, SearchResults } from './MusicSearch.js';
-import { MakeSearchable } from './Search.js';
 
 const log = MakeLogger('AudioDatabase');
 const err = MakeError('AudioDatabase-err');
@@ -214,11 +214,14 @@ function makeFullOptions(
     ? extraIgnoreFunc
     : (filepath: string) => extraIgnoreFunc(filepath) && func(filepath);
   return {
+    // Defaults:
     readOnlyFallbackLocation: 'read-only-stuff',
     audioKey: 'audio-database',
     watchHidden: false,
-    fileWatchFilter,
+    // User stuff:
     ...options,
+    // Overrides what's in options (because we combine them)
+    fileWatchFilter,
   };
 }
 

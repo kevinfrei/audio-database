@@ -1,5 +1,5 @@
+import { Searchable } from '@freik/core-utils';
 import { AlbumKey, ArtistKey, SongKey } from '@freik/media-core';
-import { Searchable } from './Search.js';
 
 export type MusicSearch = {
   songs: Searchable<SongKey>;
