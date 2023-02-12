@@ -265,8 +265,16 @@ export async function MakeAudioFileIndex(
       indexFolderLocation: path.join(tmpPersist.getLocation(), 'fileIndex.txt'),
       watchHidden: true, // We need this to see hidden cover images...
     }),
-    metadataCache: await GetMetadataStore(tmpPersist, 'metadataCache'),
-    metadataOverride: await GetMetadataStore(tmpPersist, 'metadataOverride'),
+    metadataCache: await GetMetadataStore(
+      tmpPersist,
+      'metadataCache',
+      rootLocation,
+    ),
+    metadataOverride: await GetMetadataStore(
+      tmpPersist,
+      'metadataOverride',
+      rootLocation,
+    ),
     // A hash table of h32's to path-names
     existingSongKeys: new Map<number, string>(),
     pictures: await MakeBlobStore(

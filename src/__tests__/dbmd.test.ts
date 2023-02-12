@@ -93,24 +93,25 @@ it('Generic getMediaInfo tests', async () => {
   expect(miwav).toEqual(wavMap);
 });
 
-const persist = MakePersistence(path.resolve('src/__tests__/persist-basic'));
+const root = path.resolve('src/__tests__/persist-basic');
+const persist = MakePersistence(root);
 it('Basic Metadata Store routines', async () => {
-  const mds = await GetMetadataStore(persist, 'basic');
-  const someFile = mds.get('/data/someFile.mp3');
+  const mds = await GetMetadataStore(persist, 'basic', root);
+  const someFile = mds.get('./data/someFile.mp3');
   expect(someFile).toBeUndefined();
-  mds.set('/data/someFile.mp3', {
-    originalPath: '/data/someFile.mp3',
+  mds.set('./data/someFile.mp3', {
+    originalPath: './data/someFile.mp3',
     title: 'New Title',
   });
-  const tryAgain = mds.get('/data/someFile.mp3');
+  const tryAgain = mds.get('./data/someFile.mp3');
   expect(tryAgain).toBeDefined();
   if (!Type.hasStr(tryAgain, 'title')) throw new Error('No title');
   expect(tryAgain['title']).toEqual('New Title');
-  mds.set('/data/someFile.mp3', {
-    originalPath: '/data/someFile.mp3',
+  mds.set('./data/someFile.mp3', {
+    originalPath: './data/someFile.mp3',
     track: 1,
   });
-  const more = mds.get('/data/someFile.mp3');
+  const more = mds.get('./data/someFile.mp3');
   expect(more).toBeDefined();
   if (!Type.hasStr(more, 'title')) throw new Error('No title');
   if (!Type.has(more, 'track')) throw new Error('No title');
@@ -120,18 +121,18 @@ it('Basic Metadata Store routines', async () => {
 });
 
 it('Yet another Metadata Store', async () => {
-  const mds = await GetMetadataStore(persist, 'basic');
-  const someFile = mds.get('/data/someFile.mp3');
+  const mds = await GetMetadataStore(persist, 'basic', root);
+  const someFile = mds.get('./data/someFile.mp3');
   expect(someFile).toBeDefined();
   if (!Type.hasStr(someFile, 'title')) throw new Error('No title');
   if (!Type.has(someFile, 'track')) throw new Error('No title');
   expect(someFile['title']).toEqual('New Title');
   expect(someFile['track']).toEqual(1);
-  mds.overwrite('/data/someFile.mp3', {
-    originalPath: '/data/someFile.mp3',
+  mds.overwrite('./data/someFile.mp3', {
+    originalPath: './data/someFile.mp3',
     track: 2,
   });
-  const again = mds.get('/data/someFile.mp3');
-  expect(again).toEqual({ originalPath: '/data/someFile.mp3', track: 2 });
+  const again = mds.get('./data/someFile.mp3');
+  expect(again).toEqual({ originalPath: './data/someFile.mp3', track: 2 });
   await mds.flush();
 });

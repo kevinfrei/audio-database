@@ -9,7 +9,8 @@ import {
 } from '@freik/core-utils';
 import { Attributes, FullMetadata } from '@freik/media-core';
 import { Metadata } from '@freik/media-utils';
-import { Persist } from '@freik/node-utils';
+import { PathUtil, Persist } from '@freik/node-utils';
+import path from 'path';
 
 const log = MakeLogger('metadata');
 const err = MakeError('metadata-err', false);
@@ -81,14 +82,13 @@ export async function GetMediaInfo(
   return res;
 }
 
-// TODO: Test this stuff
 export type MetadataStore = {
-  get: (path: string) => MinimumMetadata | void;
-  set: (path: string, md: MinimumMetadata) => void;
-  merge: (path: string, md: MinimumMetadata) => void;
-  overwrite: (path: string, md: MinimumMetadata) => void;
-  fail: (path: string) => void;
-  shouldTry: (path: string) => boolean;
+  get: (filepath: string) => MinimumMetadata | void;
+  set: (filepath: string, md: MinimumMetadata) => void;
+  merge: (filepath: string, md: MinimumMetadata) => void;
+  overwrite: (filepath: string, md: MinimumMetadata) => void;
+  fail: (filepath: string) => void;
+  shouldTry: (filepath: string) => boolean;
   save: () => void;
   load: () => Promise<boolean>;
   flush: () => Promise<void>;
@@ -162,7 +162,11 @@ export function IsFullMetadata(obj: unknown): obj is FullMetadata {
   return Type.isSpecificType(obj, fullMetadataKeys, mandatoryMetadataKeys);
 }
 
-function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
+function MakeMetadataStore(
+  persist: Persist,
+  name: string,
+  rootLocation: string,
+): MetadataStore {
   // The lookup for metadata
   const store = new Map<string, MinimumMetadata>();
   // A flag to keep track of if we've changed anything
@@ -170,39 +174,62 @@ function MakeMetadataStore(persist: Persist, name: string): MetadataStore {
   // The set of stuff we've already attempted and failed to get MD for
   const stopTrying = new Set<string>();
   let loaded = false;
+  const root = PathUtil.xplat(
+    PathUtil.trailingSlash(path.resolve(rootLocation)).toLocaleUpperCase(),
+  );
 
-  function get(path: string) {
-    return store.get(path);
+  function normalize(p: string): string {
+    const maybeRel = PathUtil.xplat(
+      path.resolve(path.isAbsolute(p) ? p : path.join(root, p)),
+    ).toLocaleUpperCase();
+    if (path.isAbsolute(maybeRel)) {
+      if (!maybeRel.startsWith(root)) {
+        throw new Error(
+          `Invalid path in Metadata Store: "${p}": "${maybeRel}" [${root}]`,
+        );
+      } else {
+        return maybeRel.substring(root.length);
+      }
+    }
+    return maybeRel;
   }
-  function set(path: string, md: MinimumMetadata) {
-    const curMd = get(path);
+
+  function get(filepath: string) {
+    return store.get(normalize(filepath));
+  }
+
+  function set(filepath: string, md: MinimumMetadata) {
+    const p = normalize(filepath);
+    const curMd = get(p);
     if (curMd && minMetadataEqual(curMd, md)) {
       return;
     }
     dirty = true;
-    store.set(path, { ...curMd, ...md });
-    stopTrying.delete(path);
+    store.set(p, { ...curMd, ...md });
+    stopTrying.delete(p);
     void save();
   }
-  function overwrite(path: string, md: MinimumMetadata) {
-    const curMd = get(path);
+  function overwrite(filepath: string, md: MinimumMetadata) {
+    const p = normalize(filepath);
+    const curMd = get(p);
     if (curMd && minMetadataEqual(curMd, md)) {
       return;
     }
     dirty = true;
-    store.set(path, md);
-    stopTrying.delete(path);
+    store.set(p, md);
+    stopTrying.delete(p);
     void save();
   }
-  function fail(path: string) {
-    if (stopTrying.has(path)) {
+  function fail(filepath: string) {
+    const p = normalize(filepath);
+    if (stopTrying.has(p)) {
       return;
     }
     dirty = true;
-    stopTrying.add(path);
+    stopTrying.add(p);
   }
-  function shouldTry(path: string) {
-    return !stopTrying.has(path);
+  function shouldTry(filepath: string) {
+    return !stopTrying.has(normalize(filepath));
   }
   const saverDelay = OnlyOneActive(async () => {
     log('Saving store back to disk');
@@ -290,10 +317,11 @@ const mdcm: Map<string, MetadataStore> = new Map<string, MetadataStore>();
 export async function GetMetadataStore(
   persist: Persist,
   name: string,
+  rootLocation: string,
 ): Promise<MetadataStore> {
   let mdc = mdcm.get(name);
   if (!mdc) {
-    mdc = MakeMetadataStore(persist, name);
+    mdc = MakeMetadataStore(persist, name, rootLocation);
     mdcm.set(name, mdc);
   }
   if (!(await mdc.load())) log(`Loading Metadata Store "${name}" failed`);
