@@ -209,6 +209,7 @@ function MakeMetadataStore(
     stopTrying.delete(p);
     void save();
   }
+
   function overwrite(filepath: string, md: MinimumMetadata) {
     const p = normalize(filepath);
     const curMd = get(p);
@@ -220,6 +221,7 @@ function MakeMetadataStore(
     stopTrying.delete(p);
     void save();
   }
+
   function fail(filepath: string) {
     const p = normalize(filepath);
     if (stopTrying.has(p)) {
@@ -228,9 +230,11 @@ function MakeMetadataStore(
     dirty = true;
     stopTrying.add(p);
   }
+
   function shouldTry(filepath: string) {
     return !stopTrying.has(normalize(filepath));
   }
+
   const saverDelay = OnlyOneActive(async () => {
     log('Saving store back to disk');
     const valueToSave = {
@@ -240,6 +244,7 @@ function MakeMetadataStore(
     dirty = false;
     await persist.setItemAsync(name, Pickle(valueToSave));
   }, 250);
+
   function save() {
     if (!dirty) {
       log('Not saving: Store is not dirty');
@@ -247,6 +252,7 @@ function MakeMetadataStore(
     }
     void saverDelay();
   }
+
   async function load() {
     if (loaded) {
       return true;
@@ -299,6 +305,7 @@ function MakeMetadataStore(
     loaded = okay;
     return okay;
   }
+
   return {
     get,
     set,
@@ -312,21 +319,22 @@ function MakeMetadataStore(
   };
 }
 
-const mdcm: Map<string, MetadataStore> = new Map<string, MetadataStore>();
+// const mdcm: Map<string, MetadataStore> = new Map<string, MetadataStore>();
 
 export async function GetMetadataStore(
   persist: Persist,
   name: string,
   rootLocation: string,
 ): Promise<MetadataStore> {
-  let mdc = mdcm.get(name);
-  if (!mdc) {
-    mdc = MakeMetadataStore(persist, name, rootLocation);
-    mdcm.set(name, mdc);
-  }
+  // let mdc = mdcm.get(name);
+  // if (!mdc) {
+  const mdc = MakeMetadataStore(persist, name, rootLocation);
+  // mdcm.set(name, mdc);
+  // }
   if (!(await mdc.load())) log(`Loading Metadata Store "${name}" failed`);
   return mdc;
 }
+
 /*
 let mdSaveTimer: NodeJS.Timeout | null = null;
 
