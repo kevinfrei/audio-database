@@ -2200,9 +2200,12 @@ __metadata:
   dependencies:
     "@freik/build-tools": ^3.4.5
     "@freik/core-utils": ">=1.3.1"
+    "@freik/logger": ^0.2.0
     "@freik/media-core": ">=0.11.1"
     "@freik/media-utils": ">=0.14.2"
     "@freik/node-utils": ">=1.2.4"
+    "@freik/text": ^0.3.0
+    "@types/debug": ^4.1.8
     "@types/jest": ^29.4.0
     "@types/rmfr": ^2.0.2
     "@types/xxhashjs": ^0.2.2
@@ -2303,6 +2306,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@freik/logger@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@freik/logger@npm:0.2.0"
+  dependencies:
+    debug: ^4.3.4
+  checksum: 9e62f6f6ecf1d4bbd3d71e0fcba3da7f5c8fbf541e145f57c605042ba5949f0dd0157504a00c90ca0737f73e7e6969f9b464041156da8f7cb79cec30a1239879
+  languageName: node
+  linkType: hard
+
 "@freik/media-core@npm:>=0.11.0":
   version: 0.11.0
   resolution: "@freik/media-core@npm:0.11.0"
@@ -2363,6 +2375,13 @@ __metadata:
   peerDependencies:
     "@freik/core-utils": ">=1.2.0"
   checksum: 1e39bf454692cb1e046365b5e4a31619a64af0aecfe814cc0fbe8758871829fbab2fe47c5552f63112eff82afc9cdb9cfa01f52f9745d3bd5debfd59f8864b17
+  languageName: node
+  linkType: hard
+
+"@freik/text@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@freik/text@npm:0.3.0"
+  checksum: 4736a5630de6597f9021a225a59ccd949c9d00ac3cff3938b1d21b1a65142e35fe242704dc240ce938b2546fee4e2d47265aedb7c39dd5de77b02dd62b71a5e8
   languageName: node
   linkType: hard
 
@@ -3249,6 +3268,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/debug@npm:^4.1.8":
+  version: 4.1.8
+  resolution: "@types/debug@npm:4.1.8"
+  dependencies:
+    "@types/ms": "*"
+  checksum: a9a9bb40a199e9724aa944e139a7659173a9b274798ea7efbc277cb084bc37d32fc4c00877c3496fac4fed70a23243d284adb75c00b5fdabb38a22154d18e5df
+  languageName: node
+  linkType: hard
+
 "@types/estree@npm:^1.0.0":
   version: 1.0.0
   resolution: "@types/estree@npm:1.0.0"
@@ -3328,6 +3356,13 @@ __metadata:
   version: 3.0.5
   resolution: "@types/minimatch@npm:3.0.5"
   checksum: c41d136f67231c3131cf1d4ca0b06687f4a322918a3a5adddc87ce90ed9dbd175a3610adee36b106ae68c0b92c637c35e02b58c8a56c424f71d30993ea220b92
+  languageName: node
+  linkType: hard
+
+"@types/ms@npm:*":
+  version: 0.7.31
+  resolution: "@types/ms@npm:0.7.31"
+  checksum: daadd354aedde024cce6f5aa873fefe7b71b22cd0e28632a69e8b677aeb48ae8caa1c60e5919bb781df040d116b01cb4316335167a3fc0ef6a63fa3614c0f6da
   languageName: node
   linkType: hard
 

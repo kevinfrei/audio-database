@@ -1,20 +1,19 @@
 import {
   FreikTypeTag,
   FromB64,
-  MakeError,
-  MakeLogger,
   MakeMultiMap,
   MaybeWait,
   ToB64,
   ToPathSafeName,
   Type,
 } from '@freik/core-utils';
+import { MakeLog } from '@freik/logger';
 import {
   FullMetadata,
-  isSongKey,
   MediaKey,
   SimpleMetadata,
   SongKey,
+  isSongKey,
 } from '@freik/media-core';
 import { Covers, Metadata } from '@freik/media-utils';
 import {
@@ -22,10 +21,10 @@ import {
   MakeFileIndex,
   MakePersistence,
   MakeSuffixWatcher,
-  pathCompare,
-  PathUtil as path,
   Watcher,
+  PathUtil as path,
 } from '@freik/node-utils';
+import { NormalizedStringCompare } from '@freik/text';
 import { constants as FS_CONST, promises as fsp } from 'fs';
 import { isAbsolute } from 'path';
 import { h32 } from 'xxhashjs';
@@ -36,8 +35,7 @@ import {
   MinimumMetadata,
 } from './DbMetadata.js';
 
-const log = MakeLogger('AudioFileIndex');
-const err = MakeError('AudioFileIndex-err');
+const { err, log } = MakeLog('AudioFileIndex');
 
 type PathHandlerAsync = (pathName: string) => Promise<void>;
 type PathHandlerSync = (pathName: string) => void;
@@ -115,7 +113,12 @@ export function GetIndexForKey(key: SongKey): AudioFileIndex | void {
 
 export function GetIndexForPath(pathName: string): AudioFileIndex | void {
   for (const { location, index } of lengthSortedPaths) {
-    if (pathCompare(pathName.substring(0, location.length), location) === 0) {
+    if (
+      NormalizedStringCompare(
+        pathName.substring(0, location.length),
+        location,
+      ) === 0
+    ) {
       return index;
     }
   }
@@ -390,7 +393,7 @@ export async function MakeAudioFileIndex(
     let hash = h32(relPath, 0xbadf00d).toNumber();
     while (data.existingSongKeys.has(hash)) {
       const val = data.existingSongKeys.get(hash);
-      if (Type.isString(val) && pathCompare(val, relPath) === 0) {
+      if (Type.isString(val) && NormalizedStringCompare(val, relPath) === 0) {
         break;
       }
       // err(`songKey hash collision: "${relPath}" with "${val || 'undefined'}"`);
